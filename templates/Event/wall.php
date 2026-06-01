@@ -30,7 +30,6 @@ html, body {
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     color: #fff;
-    cursor: none;
 }
 
 /* ─── Stage ─── */

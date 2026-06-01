@@ -1,560 +1,422 @@
-﻿<?php
-/** @var \App\View\AppView $this */
-/** @var \App\Model\Entity\Event $event */
-/** @var \App\Model\Entity\Photo[] $photos */
-
+<?php
+/**
+ * @var \App\View\AppView $this
+ * @var \App\Model\Entity\Event $event
+ * @var array<\App\Model\Entity\Photo> $photos
+ */
 $this->disableAutoLayout();
 
-$accentColor = h($event->theme_color ?? '#e91e63');
-$eventTitle  = h($event->title);
-$eventSlug   = h($event->slug);
-$eventId     = (int)$event->id;
-
-// Sort photos newest-first; JS will add oldest-first so newest lands at top
-$photoList = [];
-foreach ($photos as $p) {
-    $photoList[] = [
-        'thumb'    => h($p->filename_thumb),
-        'uploader' => h($p->uploader_name ?? ''),
-        'ts'       => (int)$p->created->getTimestamp(),
-    ];
-}
-usort($photoList, fn($a, $b) => $b['ts'] - $a['ts']);
+$initialPhotos = array_map(fn ($p) => [
+    'id'       => $p->id,
+    'thumb'    => '/files/' . $event->id . '/thumb/' . $p->filename_thumb,
+    'uploader' => $p->uploader_name,
+    'ts'       => $p->created->getTimestamp(),
+], $photos);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= $eventTitle ?> · Mosaico</title>
-<style>
-/* ── Reset ───────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?= h($event->title) ?> · Mosaico</title>
+    <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Root vars ───────────────────────────────────────────────── */
-:root {
-  --accent: <?= $accentColor ?>;
-  --bg: #0d0d0d;
-  --card-bg: #1a1a1a;
-  --gap: 10px;
-  --top-bar-h: 60px;
-}
+    html, body {
+        width: 100%; height: 100%;
+        background: #111;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+        color: #fff;
+    }
 
-/* ── Body ─────────────────────────────────────────────────────── */
-html, body {
-  width: 100%; height: 100%;
-  background: var(--bg);
-  color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  overflow: hidden;
-  cursor: none;
-}
+    /* ─── Top bar ─── */
+    #topbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        background: rgba(10,10,10,0.92);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        z-index: 10;
+    }
+    .live-pill {
+        display: flex; align-items: center; gap: 7px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 999px;
+        padding: 4px 12px;
+        font-size: 11px; font-weight: 800;
+        text-transform: uppercase; letter-spacing: .1em;
+    }
+    .live-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: #ff3b30;
+        animation: blink 1.5s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    #ev-title { font-size: 15px; font-weight: 700; color: rgba(255,255,255,.88); }
+    #count-pill { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.5); display:flex; align-items:center; gap:5px; }
 
-/* ── Noise texture overlay ───────────────────────────────────── */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-  opacity: 0.025;
-  pointer-events: none;
-  z-index: 0;
-}
+    /* ─── Grid: 4 cols × 3 rows filling viewport below topbar ─── */
+    #grid {
+        position: fixed;
+        inset: 56px 0 0;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+        gap: 4px;
+        padding: 4px;
+    }
 
-/* ── Top bar ──────────────────────────────────────────────────── */
-#top-bar {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: var(--top-bar-h);
-  background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 18px;
-  z-index: 100;
-  pointer-events: none;
-}
-.bar-live {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #fff;
-}
-.live-dot {
-  width: 9px; height: 9px;
-  border-radius: 50%;
-  background: #e53935;
-  animation: pulse-dot 1.4s ease-in-out infinite;
-  flex-shrink: 0;
-}
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.45; transform: scale(0.75); }
-}
-.bar-title {
-  font-size: 17px;
-  font-weight: 700;
-  color: #fff;
-  text-align: center;
-  max-width: 50%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.bar-count {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.85);
-  white-space: nowrap;
-}
+    /* ─── Cell ─── */
+    .cell {
+        position: relative;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #1e1e1e;
+        cursor: pointer;
+        transition: box-shadow .3s ease;
+    }
+    .cell img { width:100%; height:100%; object-fit:cover; display:block; }
+    .cell-footer {
+        position: absolute;
+        bottom:0; left:0; right:0;
+        padding: 28px 10px 8px;
+        background: linear-gradient(to top, rgba(0,0,0,.8), transparent);
+        font-size: 12px; font-weight: 700; color:#fff;
+        white-space: nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .cell-empty { background: #1a1a1a; border-radius:8px; border:1.5px dashed rgba(255,255,255,.07); }
 
-/* ── Grid container ──────────────────────────────────────────── */
-#grid {
-  display: flex;
-  gap: var(--gap);
-  padding: calc(var(--top-bar-h) + 10px) var(--gap) var(--gap);
-  width: 100%;
-  height: 100vh;
-  overflow: hidden;
-  align-items: flex-start;
-  position: relative;
-  z-index: 1;
-}
-.col {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap);
-  flex: 1;
-  min-width: 0;
-}
+    .cell.entering { animation: cell-in .5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    @keyframes cell-in { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
 
-/* ── Photo card ───────────────────────────────────────────────── */
-.card {
-  width: 100%;
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative;
-  background: var(--card-bg);
-  flex-shrink: 0;
-  animation: card-enter 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-.card img {
-  width: 100%;
-  height: auto;
-  display: block;
-  object-fit: cover;
-  aspect-ratio: auto;
-}
-.card-overlay {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);
-  padding: 24px 10px 8px;
-}
-.card-name {
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+    .cell.newest { box-shadow: 0 0 0 3px var(--accent), 0 0 20px rgba(0,0,0,.5); }
+    .cell.newest::after {
+        content:'NUEVA'; position:absolute; top:8px; right:8px;
+        background:var(--accent); color:#fff;
+        font-size:9px; font-weight:900; letter-spacing:.1em;
+        padding:2px 7px; border-radius:999px;
+    }
 
-/* ── Newest highlight ─────────────────────────────────────────── */
-.card.newest {
-  box-shadow: 0 0 0 3px var(--accent), 0 12px 40px rgba(0,0,0,0.6);
-}
-.card.newest .badge-new {
-  display: flex;
-}
-.badge-new {
-  display: none;
-  position: absolute;
-  top: 8px; right: 8px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 3px 7px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  line-height: 1.2;
-  pointer-events: none;
-  align-items: center;
-}
+    /* ─── Spotlight dim layer ─── */
+    #sp-dim {
+        position: fixed; inset: 56px 0 0;
+        background: rgba(0,0,0,0);
+        pointer-events: none; z-index: 20;
+        transition: background .45s ease;
+    }
+    #sp-dim.on { background: rgba(0,0,0,.78); }
 
-/* ── Animations ───────────────────────────────────────────────── */
-@keyframes card-enter {
-  from { opacity: 0; transform: translateY(-24px) scale(0.92); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes card-exit {
-  from { opacity: 1; transform: scale(1);    max-height: 400px; margin: 0; }
-  to   { opacity: 0; transform: scale(0.88); max-height: 0;     margin: -10px 0 0; }
-}
+    /* ─── Spotlight card (the photo that zooms) ─── */
+    #sp-card {
+        position: fixed;
+        display: none;
+        z-index: 30;
+        border-radius: 8px;
+        overflow: hidden;
+        pointer-events: none;
+        transition:
+            left .5s cubic-bezier(.4,0,.2,1),
+            top .5s cubic-bezier(.4,0,.2,1),
+            width .5s cubic-bezier(.4,0,.2,1),
+            height .5s cubic-bezier(.4,0,.2,1),
+            border-radius .5s ease,
+            box-shadow .5s ease;
+    }
+    #sp-card img { width:100%; height:100%; object-fit:cover; display:block; }
+    #sp-card.open { box-shadow: 0 40px 100px rgba(0,0,0,.9); border-radius: 14px; }
 
-/* ── White flash overlay ──────────────────────────────────────── */
-#flash {
-  position: fixed;
-  inset: 0;
-  background: rgba(255,255,255,0.12);
-  pointer-events: none;
-  z-index: 200;
-  opacity: 0;
-  transition: opacity 0.05s ease;
-}
+    /* ─── Uploader name overlay when spotlighted ─── */
+    #sp-name {
+        position: fixed;
+        bottom: 10vh; left: 0; right: 0;
+        text-align: center;
+        z-index: 31;
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity .4s ease .3s, transform .4s ease .3s;
+        display: none;
+    }
+    #sp-name.visible { opacity: 1; transform: translateY(0); }
+    #sp-name .sp-label {
+        font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .16em;
+        color: rgba(255,255,255,.5); margin-bottom: 6px;
+    }
+    #sp-name .sp-uname {
+        font-size: clamp(32px, 5vw, 68px);
+        font-weight: 900; color: #fff;
+        text-shadow: 0 4px 28px rgba(0,0,0,.8);
+        line-height: 1;
+    }
 
-/* ── Toast ────────────────────────────────────────────────────── */
-#toast {
-  position: fixed;
-  top: 70px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-20px);
-  background: var(--accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  padding: 9px 22px;
-  border-radius: 100px;
-  white-space: nowrap;
-  z-index: 300;
-  opacity: 0;
-  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  pointer-events: none;
-  max-width: 90vw;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-#toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
+    /* ─── Toast ─── */
+    #toast {
+        position: fixed; top: 68px; left: 50%;
+        transform: translateX(-50%) translateY(-20px);
+        padding: 9px 20px; border-radius: 999px;
+        font-size: 13px; font-weight: 700; color: #fff;
+        white-space: nowrap; box-shadow: 0 6px 24px rgba(0,0,0,.4);
+        opacity: 0; transition: opacity .3s, transform .3s;
+        pointer-events: none; z-index: 50;
+    }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
-/* ── Fullscreen overlay ───────────────────────────────────────── */
-#fullscreen-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.92);
-  z-index: 500;
-  align-items: center;
-  justify-content: center;
-  cursor: none;
-}
-#fullscreen-overlay.open {
-  display: flex;
-}
-#fullscreen-overlay img {
-  max-width: 95vw;
-  max-height: 95vh;
-  border-radius: 12px;
-  object-fit: contain;
-}
+    /* ─── Fullscreen button ─── */
+    #fs-btn {
+        position: fixed; bottom: 18px; right: 18px;
+        padding: 8px 16px;
+        background: rgba(255,255,255,.12);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,.2);
+        border-radius: 10px;
+        font-size: 12px; font-weight: 700; color: rgba(255,255,255,.8);
+        cursor: pointer; z-index: 60; transition: background .2s;
+    }
+    #fs-btn:hover { background: rgba(255,255,255,.22); }
 
-/* ── Empty state ──────────────────────────────────────────────── */
-#empty-state {
-  display: none;
-  position: fixed;
-  inset: 0;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  z-index: 50;
-  pointer-events: none;
-}
-#empty-state.visible {
-  display: flex;
-}
-.empty-text {
-  font-size: 22px;
-  font-weight: 700;
-  color: rgba(255,255,255,0.35);
-  letter-spacing: 0.03em;
-  position: relative;
-  z-index: 1;
-}
-/* CSS grid lines decoration */
-.empty-grid-lines {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.empty-grid-lines::before,
-.empty-grid-lines::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-}
-.empty-grid-lines::before {
-  background-image:
-    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-  background-size: 80px 80px;
-}
-.empty-grid-lines::after {
-  background-image:
-    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-</style>
+    /* ─── Empty state ─── */
+    #empty {
+        position: fixed; inset: 56px 0 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 14px;
+        color: rgba(255,255,255,.2); z-index: 5;
+    }
+    #empty .e-ico { font-size: 64px; }
+    #empty .e-txt { font-size: 20px; font-weight: 500; }
+    </style>
 </head>
 <body>
 
-<!-- Top bar -->
-<div id="top-bar">
-  <div class="bar-live">
-    <span class="live-dot"></span>
-    <span>LIVE</span>
-  </div>
-  <div class="bar-title"><?= $eventTitle ?></div>
-  <div class="bar-count" id="photo-count">📸 0 fotos</div>
+<div id="topbar">
+    <div class="live-pill"><div class="live-dot"></div><span>Live</span></div>
+    <div id="ev-title"><?= h($event->title) ?></div>
+    <div id="count-pill">📸 <span id="count-num">0</span></div>
 </div>
 
-<!-- Masonry grid: 4 columns -->
-<div id="grid">
-  <div class="col" id="col-0"></div>
-  <div class="col" id="col-1"></div>
-  <div class="col" id="col-2"></div>
-  <div class="col" id="col-3"></div>
+<div id="grid"></div>
+
+<div id="sp-dim"></div>
+<div id="sp-card"><img id="sp-img" src="" alt=""></div>
+<div id="sp-name">
+    <div class="sp-label">Foto de</div>
+    <div class="sp-uname" id="sp-uname-txt"></div>
 </div>
 
-<!-- White flash -->
-<div id="flash"></div>
-
-<!-- Toast -->
 <div id="toast"></div>
 
-<!-- Fullscreen overlay -->
-<div id="fullscreen-overlay">
-  <img id="fullscreen-img" src="" alt="">
+<div id="empty">
+    <div class="e-ico">📷</div>
+    <div class="e-txt">Esperando las primeras fotos...</div>
 </div>
 
-<!-- Empty state -->
-<div id="empty-state">
-  <div class="empty-grid-lines"></div>
-  <div class="empty-text">Las fotos aparecerán aquí</div>
-</div>
+<button id="fs-btn" onclick="toggleFs()">⛶ Pantalla completa</button>
 
 <script>
 (function () {
-  'use strict';
+    'use strict';
 
-  /* ── Config ──────────────────────────────────────────────── */
-  const EVENT_ID   = <?= $eventId ?>;
-  const EVENT_SLUG = <?= json_encode($event->slug) ?>;
-  const POLL_MS    = 3000;
-  const MAX_CARDS  = 24;
+    const SLUG       = '<?= h($event->slug) ?>';
+    const ACCENT     = '<?= h($event->theme_color) ?>';
+    const POLL_MS    = 3000;
+    const COLS = 4, ROWS = 3, MAX = 12;
+    const SHOW_MS    = 5000;   // photo stays big
+    const TRANS_MS   = 500;    // zoom transition
+    const PAUSE_MS   = 1200;   // between spotlights
 
-  /* ── Column state ────────────────────────────────────────── */
-  const cols = [
-    document.getElementById('col-0'),
-    document.getElementById('col-1'),
-    document.getElementById('col-2'),
-    document.getElementById('col-3'),
-  ];
-  const colCounts = [0, 0, 0, 0];
-  let totalCards = 0;
+    document.documentElement.style.setProperty('--accent', ACCENT);
 
-  /* ── UI refs ─────────────────────────────────────────────── */
-  const countEl   = document.getElementById('photo-count');
-  const flashEl   = document.getElementById('flash');
-  const toastEl   = document.getElementById('toast');
-  const fsOverlay = document.getElementById('fullscreen-overlay');
-  const fsImg     = document.getElementById('fullscreen-img');
-  const emptyEl   = document.getElementById('empty-state');
+    let pool = [], latestTs = 0, spotIdx = 0, spotTimer = null;
 
-  /* ── Polling state ────────────────────────────────────────── */
-  let lastTs     = 0;
-  let toastTimer = null;
+    const gridEl    = document.getElementById('grid');
+    const dim       = document.getElementById('sp-dim');
+    const spCard    = document.getElementById('sp-card');
+    const spImg     = document.getElementById('sp-img');
+    const spName    = document.getElementById('sp-name');
+    const spUname   = document.getElementById('sp-uname-txt');
+    const toast     = document.getElementById('toast');
+    const countEl   = document.getElementById('count-num');
+    const emptyEl   = document.getElementById('empty');
 
-  /* ── Column helpers ───────────────────────────────────────── */
-  function shortestCol() {
-    return colCounts.indexOf(Math.min(...colCounts));
-  }
-  function tallestCol() {
-    return colCounts.indexOf(Math.max(...colCounts));
-  }
-
-  /* ── Misc helpers ─────────────────────────────────────────── */
-  function updateCount() {
-    countEl.textContent = '📸 ' + totalCards + ' foto' + (totalCards !== 1 ? 's' : '');
-  }
-  function showEmpty() { emptyEl.classList.add('visible'); }
-  function hideEmpty() { emptyEl.classList.remove('visible'); }
-
-  /* ── Build card DOM ───────────────────────────────────────── */
-  function buildCard(photo, isNew) {
-    const thumbSrc = '/files/' + EVENT_ID + '/thumb/' + photo.thumb;
-
-    const card = document.createElement('div');
-    card.className = 'card' + (isNew ? ' newest' : '');
-    card.dataset.ts = photo.ts;
-
-    // "NUEVA" badge (visible only when .newest class is active)
-    const badge = document.createElement('div');
-    badge.className = 'badge-new';
-    badge.textContent = 'NUEVA';
-    card.appendChild(badge);
-
-    // Photo image
-    const img = document.createElement('img');
-    img.src     = thumbSrc;
-    img.alt     = photo.uploader || 'Foto';
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    card.appendChild(img);
-
-    // Name overlay (only when uploader name is present)
-    if (photo.uploader) {
-      const overlay = document.createElement('div');
-      overlay.className = 'card-overlay';
-      const name = document.createElement('div');
-      name.className   = 'card-name';
-      name.textContent = photo.uploader;
-      overlay.appendChild(name);
-      card.appendChild(overlay);
+    /* Build 12 empty placeholder cells */
+    const cells = [];
+    for (let i = 0; i < MAX; i++) {
+        const d = document.createElement('div');
+        d.className = 'cell-empty';
+        gridEl.appendChild(d);
+        cells.push({ el: d, photo: null });
     }
 
-    // Fullscreen on click
-    card.addEventListener('click', function () {
-      openFullscreen(thumbSrc);
-    });
+    function updateCount() { countEl.textContent = pool.length; }
 
-    // Strip .newest after 8 s
-    if (isNew) {
-      setTimeout(function () {
-        card.classList.remove('newest');
-      }, 8000);
+    function pickCell() {
+        const emp = cells.findIndex(c => !c.photo);
+        if (emp !== -1) return emp;
+        let oldest = 0, minTs = Infinity;
+        cells.forEach((c,i) => { if (c.photo?.ts < minTs) { minTs = c.photo.ts; oldest = i; } });
+        return oldest;
     }
 
-    return card;
-  }
+    function placePhoto(photo, isNew) {
+        const ci = pickCell();
+        const cell = cells[ci];
 
-  /* ── Add card to grid ─────────────────────────────────────── */
-  function addCard(photo, isNew) {
-    const ci   = shortestCol();
-    const card = buildCard(photo, isNew);
-    cols[ci].prepend(card);   // new cards go to TOP of the column
-    colCounts[ci]++;
-    totalCards++;
-    hideEmpty();
-    updateCount();
+        const div = document.createElement('div');
+        div.className = 'cell' + (isNew ? ' entering newest' : '');
 
-    if (totalCards > MAX_CARDS) {
-      removeOldest();
+        const img = document.createElement('img');
+        img.src = photo.thumb; img.alt = ''; img.loading = 'eager';
+        div.appendChild(img);
+
+        if (photo.uploader) {
+            const ft = document.createElement('div');
+            ft.className = 'cell-footer';
+            ft.textContent = photo.uploader;
+            div.appendChild(ft);
+        }
+
+        if (isNew) setTimeout(() => div.classList.remove('newest'), 8000);
+
+        gridEl.replaceChild(div, cell.el);
+        cell.el = div; cell.photo = photo;
     }
-  }
 
-  /* ── Remove bottom card from tallest column ───────────────── */
-  function removeOldest() {
-    const ci   = tallestCol();
-    const last = cols[ci].lastElementChild;
-    if (!last) return;
-    last.style.animation = 'card-exit 0.4s ease forwards';
-    setTimeout(function () {
-      if (last.parentNode) {
-        last.parentNode.removeChild(last);
-        colCounts[ci]--;
-        totalCards--;
+    function bootstrap(photos) {
+        [...photos].sort((a,b)=>a.ts-b.ts).forEach(p => { pool.push(p); placePhoto(p, false); });
+        if (photos.length) {
+            latestTs = Math.max(...photos.map(p=>p.ts));
+            emptyEl.style.display = 'none';
+        }
         updateCount();
-        if (totalCards === 0) showEmpty();
-      }
-    }, 400);
-  }
-
-  /* ── White flash ──────────────────────────────────────────── */
-  function triggerFlash() {
-    flashEl.style.opacity = '1';
-    setTimeout(function () { flashEl.style.opacity = '0'; }, 200);
-  }
-
-  /* ── Toast ────────────────────────────────────────────────── */
-  function showToast(message) {
-    if (toastTimer) {
-      clearTimeout(toastTimer);
-      toastEl.classList.remove('show');
     }
-    toastEl.textContent = message;
-    void toastEl.offsetWidth; // force reflow so transition fires
-    toastEl.classList.add('show');
-    toastTimer = setTimeout(function () {
-      toastEl.classList.remove('show');
-      toastTimer = null;
-    }, 3500);
-  }
 
-  /* ── Fullscreen ───────────────────────────────────────────── */
-  function openFullscreen(src) {
-    fsImg.src = src;
-    fsOverlay.classList.add('open');
-  }
-  fsOverlay.addEventListener('click', function () {
-    fsOverlay.classList.remove('open');
-    fsImg.src = '';
-  });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      fsOverlay.classList.remove('open');
-      fsImg.src = '';
+    function addPhoto(photo) {
+        if (pool.find(p=>p.id===photo.id)) return;
+        pool.push(photo);
+        if (photo.ts > latestTs) latestTs = photo.ts;
+        placePhoto(photo, true);
+        updateCount();
+        emptyEl.style.display = 'none';
+        showToast(photo.uploader);
     }
-  });
 
-  /* ── Bootstrap initial photos ─────────────────────────────── */
-  // PHP delivered newest-first. We reverse so oldest is added first,
-  // meaning the newest photo ends up at the top of a column.
-  const initialPhotos = <?= json_encode($photoList, JSON_UNESCAPED_UNICODE) ?>;
+    /* ── Spotlight: zoom cell to center ── */
+    function getTargetRect() {
+        const vw = window.innerWidth, vh = window.innerHeight - 56;
+        const size = Math.min(vw * 0.75, vh * 0.82);
+        return { left:(vw-size)/2, top:56+(vh-size)/2, width:size, height:size };
+    }
 
-  if (initialPhotos.length === 0) {
-    showEmpty();
-  } else {
-    initialPhotos.slice().reverse().forEach(function (p) {
-      addCard(p, false);
-      if (p.ts > lastTs) lastTs = p.ts;
+    function doSpotlight() {
+        const occupied = cells.filter(c => c.photo);
+        if (!occupied.length) { spotTimer = setTimeout(doSpotlight, 2000); return; }
+
+        const c = occupied[spotIdx % occupied.length];
+        spotIdx++;
+        const photo = c.photo;
+        const from  = c.el.getBoundingClientRect();
+        const to    = getTargetRect();
+
+        /* Place card at cell position, no transition */
+        spCard.style.transition = 'none';
+        spCard.style.left   = from.left   + 'px';
+        spCard.style.top    = from.top    + 'px';
+        spCard.style.width  = from.width  + 'px';
+        spCard.style.height = from.height + 'px';
+        spCard.style.borderRadius = '8px';
+        spCard.style.display = 'block';
+        spImg.src = photo.thumb;
+        dim.classList.add('on');
+
+        /* Animate to center */
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            spCard.style.transition =
+                `left ${TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+                `top ${TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+                `width ${TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+                `height ${TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+                `border-radius ${TRANS_MS}ms ease,` +
+                `box-shadow ${TRANS_MS}ms ease`;
+            spCard.style.left   = to.left   + 'px';
+            spCard.style.top    = to.top    + 'px';
+            spCard.style.width  = to.width  + 'px';
+            spCard.style.height = to.height + 'px';
+            spCard.classList.add('open');
+
+            if (photo.uploader) {
+                spUname.textContent = photo.uploader;
+                spName.style.display = 'block';
+                setTimeout(() => spName.classList.add('visible'), 350);
+            }
+        }));
+
+        /* Return to grid after SHOW_MS */
+        spotTimer = setTimeout(() => closeSpotlight(from), SHOW_MS + TRANS_MS);
+    }
+
+    function closeSpotlight(from) {
+        spName.classList.remove('visible');
+        setTimeout(() => { spName.style.display = 'none'; }, 400);
+
+        spCard.style.left   = from.left   + 'px';
+        spCard.style.top    = from.top    + 'px';
+        spCard.style.width  = from.width  + 'px';
+        spCard.style.height = from.height + 'px';
+        spCard.style.borderRadius = '8px';
+        spCard.classList.remove('open');
+        dim.classList.remove('on');
+
+        setTimeout(() => {
+            spCard.style.display = 'none';
+            spotTimer = setTimeout(doSpotlight, PAUSE_MS);
+        }, TRANS_MS + 80);
+    }
+
+    /* ── Toast ── */
+    function showToast(name) {
+        toast.textContent = name ? `📸 Nueva foto de ${name}` : '📸 Nueva foto';
+        toast.style.background = ACCENT;
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    /* ── Poll ── */
+    async function poll() {
+        try {
+            const r = await fetch(`/e/${SLUG}/photos/since?since=${latestTs}`, {cache:'no-store'});
+            if (!r.ok) return;
+            const data = await r.json();
+            data.photos?.forEach(p => addPhoto(p));
+        } catch(_) {}
+    }
+
+    /* ── Init ── */
+    bootstrap(<?= json_encode($initialPhotos, JSON_UNESCAPED_SLASHES) ?>);
+    spCard.style.display = 'none';
+    setTimeout(() => { if (cells.some(c=>c.photo)) doSpotlight(); }, 2500);
+    setInterval(poll, POLL_MS);
+
+    /* ── Fullscreen ── */
+    window.toggleFs = function() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.();
+        } else {
+            document.exitFullscreen?.();
+        }
+    };
+    document.addEventListener('fullscreenchange', () => {
+        document.getElementById('fs-btn').textContent =
+            document.fullscreenElement ? '✕ Salir' : '⛶ Pantalla completa';
     });
-  }
-
-  /* ── Polling ──────────────────────────────────────────────── */
-  function poll() {
-    fetch('/e/' + EVENT_SLUG + '/photos/since?since=' + lastTs, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      cache: 'no-store',
-    })
-      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-      .then(function (data) {
-        const newPhotos = (data.photos || []);
-        if (newPhotos.length === 0) return;
-
-        // Sort ascending so the very newest ends up at top after prepend
-        newPhotos.sort(function (a, b) { return a.ts - b.ts; });
-
-        newPhotos.forEach(function (p) {
-          addCard(p, true);
-          if (p.ts > lastTs) lastTs = p.ts;
-        });
-
-        // Single flash per poll cycle
-        triggerFlash();
-
-        // Toast for the newest photo in this batch
-        const newest = newPhotos[newPhotos.length - 1];
-        const msg = newest.uploader
-          ? '📸 ' + newest.uploader + ' subió una foto'
-          : '📸 Nueva foto';
-        showToast(msg);
-      })
-      .catch(function () { /* silent — keep polling */ });
-  }
-
-  setInterval(poll, POLL_MS);
-
 })();
 </script>
 </body>
