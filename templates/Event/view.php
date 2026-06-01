@@ -2,14 +2,25 @@
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Event $event
+ * @var \App\Model\Entity\EventFrame[] $frames
  */
 $this->assign('title', $event->title . ' · Subir foto');
+$hasFrames = !empty($frames);
+$eventId   = $event->id;
+$accent    = h($event->theme_color);
+
+// Build frames JSON for JS
+$framesJson = json_encode(array_map(fn($f) => [
+    'id'    => $f->id,
+    'url'   => '/files/frames/' . $eventId . '/' . h($f->filename),
+    'label' => h($f->label ?: ''),
+], $frames), JSON_HEX_TAG);
 ?>
 <div class="min-h-screen flex flex-col items-center justify-center px-4 py-8">
     <div class="w-full max-w-sm">
 
         <div class="text-center mb-8">
-            <div class="inline-block w-3 h-3 rounded-full mb-3" style="background: <?= h($event->theme_color) ?>"></div>
+            <div class="inline-block w-3 h-3 rounded-full mb-3" style="background: <?= $accent ?>"></div>
             <h1 class="text-3xl font-bold"><?= h($event->title) ?></h1>
             <p class="text-slate-400 mt-2">Sube tus fotos y aparecen en la pantalla</p>
         </div>
@@ -21,6 +32,40 @@ $this->assign('title', $event->title . ' · Subir foto');
         <?php else: ?>
 
             <div id="upload-area" class="space-y-4">
+
+                <?php if ($hasFrames): ?>
+                <!-- Frame picker -->
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Elige un marco</p>
+                    <div class="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory" id="frame-picker">
+
+                        <!-- No frame option -->
+                        <button type="button"
+                                class="frame-option snap-start flex-shrink-0 w-16 h-16 rounded-xl border-2 transition-all
+                                       flex items-center justify-center text-2xl
+                                       border-slate-600 bg-slate-800 selected"
+                                data-frame-id="0" data-frame-url="">
+                            <span class="text-slate-400 text-xl">✕</span>
+                        </button>
+
+                        <?php foreach ($frames as $frame): ?>
+                        <button type="button"
+                                class="frame-option snap-start flex-shrink-0 w-16 h-16 rounded-xl border-2 transition-all overflow-hidden relative"
+                                style="background: repeating-conic-gradient(#374151 0% 25%,#1f2937 0% 50%) 0 0/8px 8px"
+                                data-frame-id="<?= $frame->id ?>"
+                                data-frame-url="/files/frames/<?= $eventId ?>/<?= h($frame->filename) ?>">
+                            <img src="/files/frames/<?= $eventId ?>/<?= h($frame->filename) ?>"
+                                 alt="<?= h($frame->label ?: 'Marco') ?>"
+                                 class="absolute inset-0 w-full h-full object-contain pointer-events-none">
+                        </button>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php if (array_filter($frames, fn($f) => $f->label)): ?>
+                    <p id="frame-label" class="text-xs text-slate-400 mt-1 text-center h-4">Sin marco</p>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+
                 <label id="upload-label" class="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer hover:border-violet-500 transition border-slate-700 bg-slate-900/50">
                     <div class="text-center px-4">
                         <div class="text-4xl mb-2">📷</div>
@@ -32,7 +77,7 @@ $this->assign('title', $event->title . ' · Subir foto');
 
                 <div class="grid grid-cols-2 gap-2">
                     <label class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-sm cursor-pointer"
-                           style="background: <?= h($event->theme_color) ?>20; border: 1.5px solid <?= h($event->theme_color) ?>">
+                           style="background: <?= $accent ?>20; border: 1.5px solid <?= $accent ?>">
                         <span>📸</span> Tomar foto
                         <input type="file" accept="image/*" capture="environment" class="hidden camera-input">
                     </label>
@@ -45,18 +90,18 @@ $this->assign('title', $event->title . ' · Subir foto');
                 <input type="text" id="uploader-name" placeholder="Tu nombre (opcional)"
                        maxlength="80"
                        class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 text-sm"
-                       style="--tw-ring-color: <?= h($event->theme_color) ?>">
+                       style="--tw-ring-color: <?= $accent ?>">
 
                 <div id="preview-grid" class="grid grid-cols-3 gap-2 hidden"></div>
 
                 <button id="submit-btn"
                         class="w-full px-4 py-4 rounded-xl font-semibold text-lg text-white disabled:opacity-40 disabled:cursor-not-allowed hidden"
-                        style="background: <?= h($event->theme_color) ?>">
+                        style="background: <?= $accent ?>">
                     Subir fotos
                 </button>
 
                 <div id="progress-bar" class="w-full bg-slate-800 rounded-full h-2 hidden">
-                    <div id="progress-fill" class="h-2 rounded-full transition-all" style="background: <?= h($event->theme_color) ?>; width: 0%"></div>
+                    <div id="progress-fill" class="h-2 rounded-full transition-all" style="background: <?= $accent ?>; width: 0%"></div>
                 </div>
             </div>
 
@@ -71,7 +116,7 @@ $this->assign('title', $event->title . ' · Subir foto');
                     <?php endif; ?>
                 </p>
                 <button onclick="resetUpload()" class="mt-4 px-6 py-3 rounded-xl font-medium text-white"
-                        style="background: <?= h($event->theme_color) ?>">
+                        style="background: <?= $accent ?>">
                     Subir otra foto
                 </button>
             </div>
@@ -82,24 +127,73 @@ $this->assign('title', $event->title . ' · Subir foto');
     </div>
 </div>
 
+<style>
+.frame-option.selected {
+    border-color: <?= $accent ?>;
+    box-shadow: 0 0 0 2px <?= $accent ?>66;
+}
+</style>
+
 <script>
 (function () {
     const UPLOAD_URL = '/e/<?= h($event->slug) ?>/upload';
-    let pendingFiles = [];
+    const ACCENT     = '<?= $accent ?>';
+    const HAS_FRAMES = <?= $hasFrames ? 'true' : 'false' ?>;
 
-    const photoInput   = document.getElementById('photo-input');
-    const previewGrid  = document.getElementById('preview-grid');
-    const submitBtn    = document.getElementById('submit-btn');
-    const progressBar  = document.getElementById('progress-bar');
-    const progressFill = document.getElementById('progress-fill');
+    let pendingFiles     = [];
+    let selectedFrameId  = 0;
+    let selectedFrameUrl = '';
+
+    const photoInput    = document.getElementById('photo-input');
+    const previewGrid   = document.getElementById('preview-grid');
+    const submitBtn     = document.getElementById('submit-btn');
+    const progressBar   = document.getElementById('progress-bar');
+    const progressFill  = document.getElementById('progress-fill');
     const successScreen = document.getElementById('success-screen');
-    const uploadArea   = document.getElementById('upload-area');
-    const errorBanner  = document.getElementById('error-banner');
-    const nameInput    = document.getElementById('uploader-name');
+    const uploadArea    = document.getElementById('upload-area');
+    const errorBanner   = document.getElementById('error-banner');
+    const nameInput     = document.getElementById('uploader-name');
+    const frameLabelEl  = document.getElementById('frame-label');
 
-    // Try to restore saved name.
+    // Restore saved name.
     try { nameInput.value = localStorage.getItem('pw_name') || ''; } catch(e) {}
 
+    // ── Frame picker ─────────────────────────────────────────────
+    if (HAS_FRAMES) {
+        document.querySelectorAll('.frame-option').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.frame-option').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedFrameId  = parseInt(btn.dataset.frameId, 10);
+                selectedFrameUrl = btn.dataset.frameUrl || '';
+                if (frameLabelEl) {
+                    frameLabelEl.textContent = selectedFrameId === 0
+                        ? 'Sin marco'
+                        : (btn.querySelector('img')?.alt || 'Marco');
+                }
+                // Update overlays on existing previews.
+                updateAllOverlays();
+            });
+        });
+    }
+
+    function updateAllOverlays() {
+        document.querySelectorAll('.preview-frame-overlay').forEach(el => el.remove());
+        if (!selectedFrameUrl) return;
+        document.querySelectorAll('#preview-grid .preview-wrapper').forEach(wrapper => {
+            addOverlay(wrapper);
+        });
+    }
+
+    function addOverlay(wrapper) {
+        if (!selectedFrameUrl) return;
+        const ov = document.createElement('img');
+        ov.src = selectedFrameUrl;
+        ov.className = 'preview-frame-overlay absolute inset-0 w-full h-full object-cover pointer-events-none';
+        wrapper.appendChild(ov);
+    }
+
+    // ── File handling ─────────────────────────────────────────────
     function addFiles(files) {
         Array.from(files).forEach(f => {
             if (f.size > 15 * 1024 * 1024) {
@@ -109,17 +203,21 @@ $this->assign('title', $event->title . ' · Subir foto');
             pendingFiles.push(f);
             const reader = new FileReader();
             reader.onload = e => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'preview-wrapper relative';
+
                 const img = document.createElement('img');
                 img.src = e.target.result;
                 img.className = 'w-full aspect-square object-cover rounded-lg';
-                const wrapper = document.createElement('div');
-                wrapper.className = 'relative';
+
                 const badge = document.createElement('div');
-                badge.className = 'absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-xs cursor-pointer';
+                badge.className = 'absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-xs cursor-pointer z-10';
                 badge.textContent = '✕';
                 const idx = pendingFiles.length - 1;
                 badge.onclick = () => { pendingFiles.splice(idx, 1); wrapper.remove(); updateSubmitBtn(); };
+
                 wrapper.append(img, badge);
+                if (selectedFrameUrl) addOverlay(wrapper);
                 previewGrid.appendChild(wrapper);
             };
             reader.readAsDataURL(f);
@@ -149,6 +247,7 @@ $this->assign('title', $event->title . ' · Subir foto');
         inp.addEventListener('change', e => addFiles(e.target.files));
     });
 
+    // ── Upload ────────────────────────────────────────────────────
     submitBtn.addEventListener('click', async () => {
         if (!pendingFiles.length) return;
         const name = nameInput.value.trim();
@@ -164,6 +263,7 @@ $this->assign('title', $event->title . ' · Subir foto');
             const fd = new FormData();
             fd.append('photo', file);
             if (name) fd.append('name', name);
+            if (selectedFrameId > 0) fd.append('frame_id', selectedFrameId);
 
             try {
                 const res = await fetch(UPLOAD_URL, {

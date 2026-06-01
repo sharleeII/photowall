@@ -23,8 +23,9 @@ class EventController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Events = $this->fetchTable('Events');
-        $this->Photos = $this->fetchTable('Photos');
+        $this->Events      = $this->fetchTable('Events');
+        $this->Photos      = $this->fetchTable('Photos');
+        $this->EventFrames = $this->fetchTable('EventFrames');
         $this->viewBuilder()->setLayout('public');
     }
 
@@ -32,8 +33,15 @@ class EventController extends AppController
     public function view(string $slug): void
     {
         $event = $this->getEventBySlug($slug);
+
+        $frames = $this->EventFrames->find()
+            ->where(['event_id' => $event->id])
+            ->orderBy(['sort_order' => 'ASC', 'created' => 'ASC'])
+            ->all()
+            ->toList();
+
         $this->set('themeColor', $event->theme_color);
-        $this->set(compact('event'));
+        $this->set(compact('event', 'frames'));
     }
 
     /** Full-screen slideshow for the projector. */

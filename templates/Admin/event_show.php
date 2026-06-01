@@ -70,42 +70,57 @@ $this->assign('title', $event->title . ' · Admin');
     </div>
 </div>
 
-<!-- Photo frame -->
-<?php if ($event->frame_filename): ?>
+<!-- Photo frames -->
 <div class="card mb-6">
-    <div class="flex items-center justify-between mb-3">
-        <h2 class="card-title mb-0">Marco fotográfico</h2>
-        <a href="/admin/events/<?= $event->id ?>/edit" class="text-sm text-violet-600 hover:text-violet-800 font-medium">
-            Cambiar →
-        </a>
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="card-title mb-0">Marcos fotográficos</h2>
+        <span class="text-xs text-slate-400">Los invitados eligen uno al subir</span>
     </div>
-    <div class="flex items-center gap-4">
-        <div class="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-slate-200"
-             style="background: repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%) 0 0 / 10px 10px;">
-            <img src="/files/frames/<?= $event->id ?>/frame.png?v=<?= time() ?>"
-                 alt="Marco" class="w-full h-full object-contain">
+
+    <?php if (!empty($frames)): ?>
+    <div class="flex flex-wrap gap-3 mb-4">
+        <?php foreach ($frames as $frame): ?>
+        <div class="flex flex-col items-center gap-1.5 group">
+            <div class="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 relative"
+                 style="background: repeating-conic-gradient(#e2e8f0 0% 25%,#fff 0% 50%) 0 0/8px 8px;">
+                <img src="/files/frames/<?= $event->id ?>/<?= h($frame->filename) ?>?v=<?= $frame->id ?>"
+                     alt="<?= h($frame->label ?: 'Marco') ?>"
+                     class="w-full h-full object-contain">
+            </div>
+            <?php if ($frame->label): ?>
+            <p class="text-xs text-slate-500 text-center max-w-[80px] truncate"><?= h($frame->label) ?></p>
+            <?php endif; ?>
+            <form method="post" action="/admin/frames/<?= $frame->id ?>/delete"
+                  onsubmit="return confirm('¿Eliminar este marco?')">
+                <button class="text-xs text-red-400 hover:text-red-600 transition">✕ Eliminar</button>
+            </form>
         </div>
-        <div>
-            <p class="text-sm font-semibold text-slate-700">Marco activo ✓</p>
-            <p class="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                Cada foto nueva subida por los invitados saldrá con este marco aplicado.
-            </p>
-        </div>
+        <?php endforeach; ?>
     </div>
+    <?php else: ?>
+    <p class="text-sm text-slate-400 mb-4">Sin marcos aún. Los invitados subirán fotos sin marco hasta que agregues uno.</p>
+    <?php endif; ?>
+
+    <!-- Upload new frame -->
+    <form method="post" action="/admin/events/<?= $event->id ?>/frames/upload"
+          enctype="multipart/form-data"
+          class="flex flex-wrap items-end gap-3 pt-4 border-t border-slate-100">
+        <div class="field flex-1 min-w-[180px]">
+            <label class="field-label">Nuevo marco (PNG transparente)</label>
+            <input type="file" name="frame" accept="image/png" required
+                   class="block w-full text-sm text-slate-500
+                          file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0
+                          file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700
+                          hover:file:bg-violet-100 cursor-pointer">
+        </div>
+        <div class="field w-36">
+            <label class="field-label">Nombre (opcional)</label>
+            <input type="text" name="label" maxlength="100" placeholder="Ej: Floral"
+                   class="field-input text-sm">
+        </div>
+        <button type="submit" class="btn btn-primary text-sm self-end mb-0.5">+ Agregar</button>
+    </form>
 </div>
-<?php else: ?>
-<div class="card mb-6 border-dashed">
-    <div class="flex items-center justify-between">
-        <div>
-            <p class="text-sm font-semibold text-slate-500">Sin marco fotográfico</p>
-            <p class="text-xs text-slate-400 mt-0.5">Las fotos se suben sin overlay. Agrega uno desde Editar.</p>
-        </div>
-        <a href="/admin/events/<?= $event->id ?>/edit" class="btn btn-secondary text-xs">
-            Agregar marco
-        </a>
-    </div>
-</div>
-<?php endif; ?>
 
 <!-- QR + URLs -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">

@@ -26,8 +26,9 @@ class AdminController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Events = $this->fetchTable('Events');
-        $this->Photos = $this->fetchTable('Photos');
+        $this->Events      = $this->fetchTable('Events');
+        $this->Photos      = $this->fetchTable('Photos');
+        $this->EventFrames = $this->fetchTable('EventFrames');
         $this->viewBuilder()->setLayout('admin');
     }
 
@@ -121,15 +122,6 @@ class AdminController extends AppController
             $event = $this->Events->newEntity($data);
 
             if ($this->Events->save($event)) {
-                // Handle optional frame upload after we have the event ID.
-                $frameFile = $this->request->getUploadedFile('frame');
-                if ($frameFile && $frameFile->getError() === UPLOAD_ERR_OK) {
-                    if ($this->saveFrameFile($event->id, $frameFile)) {
-                        $event->frame_filename = 'frame.png';
-                        $this->Events->save($event);
-                    }
-                }
-
                 $this->Flash->success('Evento creado.');
 
                 return $this->redirect(['action' => 'eventShow', $event->id]);
@@ -165,7 +157,84 @@ class AdminController extends AppController
             ->all()
             ->toList();
 
-        $this->set(compact('event', 'publicUrl', 'wallUrl', 'galleryUrl', 'stats', 'latest'));
+        $frames = $this->EventFrames->find()
+            ->where(['event_id' => $event->id])
+            ->orderBy(['sort_order' => 'ASC', 'created' => 'ASC'])
+            ->all()
+            ->toList();
+
+        $this->set(compact('event', 'publicUrl', 'wallUrl', 'galleryUrl', 'stats', 'latest', 'frames'));
+    }
+
+    /** Upload a new frame PNG for an event. POST /admin/events/{id}/frames/upload */
+    public function eventFrameUpload(int $id): Response
+    {
+        $this->request->allowMethod(['post']);
+        $event = $this->getEvent($id);
+
+        $file = $this->request->getUploadedFile('frame');
+        if (!$file || $file->getError() !== UPLOAD_ERR_OK) {
+            $this->Flash->error('No se recibió ningún archivo.');
+
+            return $this->redirect(['action' => 'eventShow', $id]);
+        }
+
+        $tmpPath = $file->getStream()->getMetadata('uri');
+        $mime = mime_content_type($tmpPath) ?: '';
+        if ($mime !== 'image/png') {
+            $this->Flash->error('El marco debe ser un PNG con transparencia (.png).');
+
+            return $this->redirect(['action' => 'eventShow', $id]);
+        }
+
+        $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
+        $frameDir = $uploadsDir . 'frames' . DIRECTORY_SEPARATOR . $event->id . DIRECTORY_SEPARATOR;
+        if (!is_dir($frameDir)) {
+            mkdir($frameDir, 0775, true);
+        }
+
+        $filename = $this->makeFrameUuid() . '.png';
+        $file->moveTo($frameDir . $filename);
+
+        $label = trim((string)($this->request->getData('label') ?? ''));
+
+        $frame = $this->EventFrames->newEntity([
+            'event_id'   => $event->id,
+            'filename'   => $filename,
+            'label'      => $label !== '' ? mb_substr($label, 0, 100) : null,
+            'sort_order' => 0,
+            'created'    => new \Cake\I18n\DateTime(),
+        ]);
+        $this->EventFrames->save($frame);
+
+        $this->Flash->success('Marco agregado.');
+
+        return $this->redirect(['action' => 'eventShow', $id]);
+    }
+
+    /** Delete a single frame. POST /admin/frames/{frameId}/delete */
+    public function frameDelete(int $frameId): Response
+    {
+        $this->request->allowMethod(['post']);
+
+        try {
+            $frame = $this->EventFrames->get($frameId);
+        } catch (\Exception $e) {
+            $this->Flash->error('Marco no encontrado.');
+
+            return $this->redirect('/admin');
+        }
+
+        $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
+        $filePath = $uploadsDir . 'frames' . DIRECTORY_SEPARATOR
+            . $frame->event_id . DIRECTORY_SEPARATOR . $frame->filename;
+        @unlink($filePath);
+
+        $eventId = $frame->event_id;
+        $this->EventFrames->delete($frame);
+        $this->Flash->success('Marco eliminado.');
+
+        return $this->redirect(['action' => 'eventShow', $eventId]);
     }
 
     public function eventEdit(int $id): ?Response
@@ -176,33 +245,10 @@ class AdminController extends AppController
             $data = $this->request->getData();
             $data['moderation_enabled'] = !empty($data['moderation_enabled']);
             unset($data['slug']); // slug stays the same — changing it breaks printed QRs
-            unset($data['frame_filename']); // managed separately below
-
-            // Handle frame removal before patching.
-            $removeFrame = !empty($data['remove_frame']);
-            unset($data['remove_frame']);
 
             $event = $this->Events->patchEntity($event, $data);
 
             if ($this->Events->save($event)) {
-                $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
-
-                // New frame uploaded — replaces existing one.
-                $frameFile = $this->request->getUploadedFile('frame');
-                if ($frameFile && $frameFile->getError() === UPLOAD_ERR_OK) {
-                    if ($this->saveFrameFile($event->id, $frameFile)) {
-                        $event->frame_filename = 'frame.png';
-                        $this->Events->save($event);
-                    }
-                } elseif ($removeFrame && $event->frame_filename) {
-                    // Explicit removal requested.
-                    $framePath = $uploadsDir . 'frames' . DIRECTORY_SEPARATOR
-                        . $event->id . DIRECTORY_SEPARATOR . 'frame.png';
-                    @unlink($framePath);
-                    $event->frame_filename = null;
-                    $this->Events->save($event);
-                }
-
                 $this->Flash->success('Evento actualizado.');
 
                 return $this->redirect(['action' => 'eventShow', $event->id]);
@@ -358,34 +404,9 @@ class AdminController extends AppController
 
     // ---------- Helpers ----------
 
-    /**
-     * Validate and store an uploaded frame PNG.
-     * Saves to webroot/files/frames/{eventId}/frame.png.
-     *
-     * @param int $eventId
-     * @param \Psr\Http\Message\UploadedFileInterface $file
-     */
-    private function saveFrameFile(int $eventId, \Psr\Http\Message\UploadedFileInterface $file): bool
+    private function makeFrameUuid(): string
     {
-        $tmpPath = $file->getStream()->getMetadata('uri');
-        $mime = mime_content_type($tmpPath) ?: '';
-
-        if ($mime !== 'image/png') {
-            $this->Flash->error('El marco debe ser un PNG con transparencia (.png).');
-
-            return false;
-        }
-
-        $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
-        $frameDir = $uploadsDir . 'frames' . DIRECTORY_SEPARATOR . $eventId . DIRECTORY_SEPARATOR;
-
-        if (!is_dir($frameDir)) {
-            mkdir($frameDir, 0775, true);
-        }
-
-        $file->moveTo($frameDir . 'frame.png');
-
-        return true;
+        return sprintf('%08x%04x%04x', mt_rand(0, 0xffffffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff));
     }
 
     private function getEvent(int $id): \App\Model\Entity\Event

@@ -50,6 +50,11 @@ class EventsTable extends Table
         $this->hasMany('Photos', [
             'foreignKey' => 'event_id',
         ]);
+
+        $this->hasMany('EventFrames', [
+            'foreignKey' => 'event_id',
+            'sort'       => ['EventFrames.sort_order' => 'ASC', 'EventFrames.created' => 'ASC'],
+        ]);
     }
 
     /**

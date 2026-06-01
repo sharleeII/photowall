@@ -31,8 +31,9 @@ class UploadController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Events = $this->fetchTable('Events');
-        $this->Photos = $this->fetchTable('Photos');
+        $this->Events      = $this->fetchTable('Events');
+        $this->Photos      = $this->fetchTable('Photos');
+        $this->EventFrames = $this->fetchTable('EventFrames');
     }
 
     public function store(string $slug): Response
@@ -72,6 +73,22 @@ class UploadController extends AppController
         $status = $event->moderation_enabled ? 'pending' : 'approved';
         $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
 
+        // Resolve selected frame (0 or absent = no frame).
+        $frameId  = (int)($this->request->getData('frame_id') ?? 0);
+        $framePath = null;
+        if ($frameId > 0) {
+            $frame = $this->EventFrames->find()
+                ->where(['id' => $frameId, 'event_id' => $event->id])
+                ->first();
+            if ($frame) {
+                $candidate = $uploadsDir . 'frames' . DIRECTORY_SEPARATOR
+                    . $event->id . DIRECTORY_SEPARATOR . $frame->filename;
+                if (is_file($candidate)) {
+                    $framePath = $candidate;
+                }
+            }
+        }
+
         $saved = 0;
         $errors = [];
 
@@ -104,13 +121,9 @@ class UploadController extends AppController
                 ImageService::saveOriginal($tmpPath, $origDir . $origFilename);
                 ImageService::generateThumb($origDir . $origFilename, $thumbDir . $thumbFilename);
 
-                // Apply photo frame if the event has one configured.
-                if ($event->frame_filename) {
-                    $framePath = $uploadsDir . 'frames' . DIRECTORY_SEPARATOR
-                        . $event->id . DIRECTORY_SEPARATOR . 'frame.png';
-                    if (is_file($framePath)) {
-                        ImageService::applyFrame($thumbDir . $thumbFilename, $framePath);
-                    }
+                // Apply guest-selected frame (if any).
+                if ($framePath !== null) {
+                    ImageService::applyFrame($thumbDir . $thumbFilename, $framePath);
                 }
             } catch (\Throwable $e) {
                 @unlink($origDir . $origFilename);

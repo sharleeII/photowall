@@ -15,7 +15,7 @@ $this->assign('title', 'Nuevo evento · Photowall');
     </div>
 
     <div class="card">
-        <form method="post" enctype="multipart/form-data" class="space-y-5">
+        <form method="post" class="space-y-5">
             <div class="field">
                 <label class="field-label">Título del evento</label>
                 <input type="text" name="title" required placeholder="Ej: Quinceañera de Valentina"
@@ -30,22 +30,6 @@ $this->assign('title', 'Nuevo evento · Photowall');
                            class="h-10 w-16 rounded-lg border-2 border-slate-200 cursor-pointer p-0.5 bg-white">
                     <span class="text-sm text-slate-500">Aparece en el slideshow, QR y fotos nuevas.</span>
                 </div>
-            </div>
-
-            <div class="divider"></div>
-
-            <!-- Photo frame -->
-            <div class="field">
-                <label class="field-label">Marco fotográfico <span class="text-slate-400 font-normal">(opcional)</span></label>
-                <input type="file" name="frame" accept="image/png"
-                       class="block w-full text-sm text-slate-500
-                              file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0
-                              file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700
-                              hover:file:bg-violet-100 cursor-pointer">
-                <span class="field-hint">
-                    PNG con fondo transparente. Se superpone sobre cada foto que suban los invitados.
-                    También puedes subirlo después desde "Editar".
-                </span>
             </div>
 
             <div class="divider"></div>
@@ -67,11 +51,13 @@ $this->assign('title', 'Nuevo evento · Photowall');
             <div class="divider"></div>
 
             <div class="flex items-center gap-3">
-                <button type="submit" class="btn btn-primary">
-                    Crear evento
-                </button>
+                <button type="submit" class="btn btn-primary">Crear evento</button>
                 <a href="/admin" class="btn btn-secondary">Cancelar</a>
             </div>
         </form>
     </div>
+
+    <p class="text-xs text-slate-400 mt-4 text-center">
+        Puedes agregar marcos fotográficos después de crear el evento.
+    </p>
 </div>
