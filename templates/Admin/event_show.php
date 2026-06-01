@@ -77,8 +77,9 @@ $this->assign('title', $event->title . ' · Admin');
                     $wallBase = rtrim($wallUrl, '/');
                     $walls = [
                         ['label' => '🎬 Cinema', 'desc' => 'Swiper 3D + bokeh', 'url' => $wallBase],
-                        ['label' => '📱 Stories', 'desc' => 'Estilo Instagram', 'url' => $wallBase . '/stories'],
+                        ['label' => '📱 Stories', 'desc' => 'Grid + spotlight', 'url' => $wallBase . '/stories'],
                         ['label' => '🎉 Fiesta', 'desc' => 'Polaroids + confetti', 'url' => $wallBase . '/fiesta'],
+                        ['label' => '📲 Feed', 'desc' => 'Estilo Instagram', 'url' => $wallBase . '/feed'],
                     ];
                     foreach ($walls as $w): ?>
                     <div class="flex items-center gap-3 bg-slate-50 border rounded p-2">
