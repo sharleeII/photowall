@@ -117,6 +117,7 @@ $this->assign('title', $event->title . ' · Admin');
                         ['label' => '⬛ Mosaico', 'desc' => 'Grid + spotlight',       'url' => $wallBase . '/stories'],
                         ['label' => '🎉 Fiesta',  'desc' => 'Polaroids + confetti',   'url' => $wallBase . '/fiesta'],
                         ['label' => '📲 Feed',    'desc' => 'Estilo Instagram',        'url' => $wallBase . '/feed'],
+                        ['label' => '⚡ Vibes',   'desc' => 'Neon bento Gen-Z',        'url' => $wallBase . '/bento'],
                     ];
                     foreach ($walls as $w): ?>
                     <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 hover:border-slate-300 transition">

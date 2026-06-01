@@ -80,6 +80,20 @@ class EventController extends AppController
         $this->set(compact('event', 'photos'));
     }
 
+    /** Neon bento / Gen-Z vibes wall. */
+    public function wallBento(string $slug): void
+    {
+        $event = $this->getEventBySlug($slug);
+        $photos = $this->Photos->find()
+            ->where(['event_id' => $event->id, 'status' => 'approved'])
+            ->orderBy(['created' => 'DESC'])
+            ->limit(50)
+            ->all()
+            ->toList();
+        $this->set('themeColor', $event->theme_color);
+        $this->set(compact('event', 'photos'));
+    }
+
     /** Polaroid party wall. */
     public function wallFiesta(string $slug): void
     {
