@@ -45,6 +45,9 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/admin/photos/{id}/reject', ['controller' => 'Admin', 'action' => 'photoReject'])
             ->setPatterns(['id' => '\d+'])
             ->setPass(['id']);
+        $builder->connect('/admin/events/{id}/remove-frame', ['controller' => 'Admin', 'action' => 'eventRemoveFrame'])
+            ->setPatterns(['id' => '\d+'])
+            ->setPass(['id']);
         $builder->connect('/admin/events/{id}/pending', ['controller' => 'Admin', 'action' => 'eventPendingJson'])
             ->setPatterns(['id' => '\d+'])
             ->setPass(['id']);
@@ -54,9 +57,6 @@ return function (RouteBuilder $routes): void {
             ->setPatterns(['slug' => '[a-z0-9\-]+'])
             ->setPass(['slug']);
         $builder->connect('/e/{slug}/upload', ['controller' => 'Upload', 'action' => 'store'])
-            ->setPatterns(['slug' => '[a-z0-9\-]+'])
-            ->setPass(['slug']);
-        $builder->connect('/e/{slug}/wall/bento', ['controller' => 'Event', 'action' => 'wallBento'])
             ->setPatterns(['slug' => '[a-z0-9\-]+'])
             ->setPass(['slug']);
         $builder->connect('/e/{slug}/wall/feed', ['controller' => 'Event', 'action' => 'wallFeed'])

@@ -12,6 +12,7 @@ use Cake\ORM\Entity;
  * @property string $slug
  * @property string $title
  * @property string $theme_color
+ * @property string|null $frame_filename
  * @property bool $moderation_enabled
  * @property bool $is_open
  * @property \Cake\I18n\DateTime $created
@@ -34,6 +35,7 @@ class Event extends Entity
         'slug' => true,
         'title' => true,
         'theme_color' => true,
+        'frame_filename' => true,
         'moderation_enabled' => true,
         'is_open' => true,
         'created' => true,

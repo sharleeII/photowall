@@ -70,6 +70,43 @@ $this->assign('title', $event->title . ' · Admin');
     </div>
 </div>
 
+<!-- Photo frame -->
+<?php if ($event->frame_filename): ?>
+<div class="card mb-6">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="card-title mb-0">Marco fotográfico</h2>
+        <a href="/admin/events/<?= $event->id ?>/edit" class="text-sm text-violet-600 hover:text-violet-800 font-medium">
+            Cambiar →
+        </a>
+    </div>
+    <div class="flex items-center gap-4">
+        <div class="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-slate-200"
+             style="background: repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%) 0 0 / 10px 10px;">
+            <img src="/files/frames/<?= $event->id ?>/frame.png?v=<?= time() ?>"
+                 alt="Marco" class="w-full h-full object-contain">
+        </div>
+        <div>
+            <p class="text-sm font-semibold text-slate-700">Marco activo ✓</p>
+            <p class="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                Cada foto nueva subida por los invitados saldrá con este marco aplicado.
+            </p>
+        </div>
+    </div>
+</div>
+<?php else: ?>
+<div class="card mb-6 border-dashed">
+    <div class="flex items-center justify-between">
+        <div>
+            <p class="text-sm font-semibold text-slate-500">Sin marco fotográfico</p>
+            <p class="text-xs text-slate-400 mt-0.5">Las fotos se suben sin overlay. Agrega uno desde Editar.</p>
+        </div>
+        <a href="/admin/events/<?= $event->id ?>/edit" class="btn btn-secondary text-xs">
+            Agregar marco
+        </a>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- QR + URLs -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
     <!-- QR -->
@@ -117,7 +154,6 @@ $this->assign('title', $event->title . ' · Admin');
                         ['label' => '⬛ Mosaico', 'desc' => 'Grid + spotlight',       'url' => $wallBase . '/stories'],
                         ['label' => '🎉 Fiesta',  'desc' => 'Polaroids + confetti',   'url' => $wallBase . '/fiesta'],
                         ['label' => '📲 Feed',    'desc' => 'Estilo Instagram',        'url' => $wallBase . '/feed'],
-                        ['label' => '⚡ Vibes',   'desc' => 'Neon bento Gen-Z',        'url' => $wallBase . '/bento'],
                     ];
                     foreach ($walls as $w): ?>
                     <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 hover:border-slate-300 transition">

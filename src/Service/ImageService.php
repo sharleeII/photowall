@@ -83,6 +83,29 @@ class ImageService
     }
 
     /**
+     * Composite a PNG frame (with transparent center) on top of an image file.
+     * The frame is scaled to match the image's exact pixel dimensions.
+     * Modifies $imagePath in-place (overwrites the file).
+     *
+     * @throws \RuntimeException on failure
+     */
+    public static function applyFrame(string $imagePath, string $framePath): void
+    {
+        $manager = ImageManager::usingDriver(new GdDriver());
+
+        $photo = $manager->decodePath($imagePath);
+        $frame = $manager->decodePath($framePath);
+
+        // Stretch frame to photo dimensions so it covers the full area.
+        $frame->resize($photo->width(), $photo->height());
+
+        // Composite: frame on top, transparent areas let the photo show through.
+        $photo->place($frame);
+
+        $photo->save($imagePath, quality: self::THUMB_QUALITY);
+    }
+
+    /**
      * Save original file to $destPath.
      * Converts PNG/WEBP to JPEG for storage consistency.
      * JPEG originals are copied as-is to preserve quality.

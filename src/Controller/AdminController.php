@@ -121,6 +121,15 @@ class AdminController extends AppController
             $event = $this->Events->newEntity($data);
 
             if ($this->Events->save($event)) {
+                // Handle optional frame upload after we have the event ID.
+                $frameFile = $this->request->getUploadedFile('frame');
+                if ($frameFile && $frameFile->getError() === UPLOAD_ERR_OK) {
+                    if ($this->saveFrameFile($event->id, $frameFile)) {
+                        $event->frame_filename = 'frame.png';
+                        $this->Events->save($event);
+                    }
+                }
+
                 $this->Flash->success('Evento creado.');
 
                 return $this->redirect(['action' => 'eventShow', $event->id]);
@@ -167,10 +176,33 @@ class AdminController extends AppController
             $data = $this->request->getData();
             $data['moderation_enabled'] = !empty($data['moderation_enabled']);
             unset($data['slug']); // slug stays the same — changing it breaks printed QRs
+            unset($data['frame_filename']); // managed separately below
+
+            // Handle frame removal before patching.
+            $removeFrame = !empty($data['remove_frame']);
+            unset($data['remove_frame']);
 
             $event = $this->Events->patchEntity($event, $data);
 
             if ($this->Events->save($event)) {
+                $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
+
+                // New frame uploaded — replaces existing one.
+                $frameFile = $this->request->getUploadedFile('frame');
+                if ($frameFile && $frameFile->getError() === UPLOAD_ERR_OK) {
+                    if ($this->saveFrameFile($event->id, $frameFile)) {
+                        $event->frame_filename = 'frame.png';
+                        $this->Events->save($event);
+                    }
+                } elseif ($removeFrame && $event->frame_filename) {
+                    // Explicit removal requested.
+                    $framePath = $uploadsDir . 'frames' . DIRECTORY_SEPARATOR
+                        . $event->id . DIRECTORY_SEPARATOR . 'frame.png';
+                    @unlink($framePath);
+                    $event->frame_filename = null;
+                    $this->Events->save($event);
+                }
+
                 $this->Flash->success('Evento actualizado.');
 
                 return $this->redirect(['action' => 'eventShow', $event->id]);
@@ -325,6 +357,36 @@ class AdminController extends AppController
     }
 
     // ---------- Helpers ----------
+
+    /**
+     * Validate and store an uploaded frame PNG.
+     * Saves to webroot/files/frames/{eventId}/frame.png.
+     *
+     * @param int $eventId
+     * @param \Psr\Http\Message\UploadedFileInterface $file
+     */
+    private function saveFrameFile(int $eventId, \Psr\Http\Message\UploadedFileInterface $file): bool
+    {
+        $tmpPath = $file->getStream()->getMetadata('uri');
+        $mime = mime_content_type($tmpPath) ?: '';
+
+        if ($mime !== 'image/png') {
+            $this->Flash->error('El marco debe ser un PNG con transparencia (.png).');
+
+            return false;
+        }
+
+        $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
+        $frameDir = $uploadsDir . 'frames' . DIRECTORY_SEPARATOR . $eventId . DIRECTORY_SEPARATOR;
+
+        if (!is_dir($frameDir)) {
+            mkdir($frameDir, 0775, true);
+        }
+
+        $file->moveTo($frameDir . 'frame.png');
+
+        return true;
+    }
 
     private function getEvent(int $id): \App\Model\Entity\Event
     {

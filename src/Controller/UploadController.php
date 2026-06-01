@@ -103,6 +103,15 @@ class UploadController extends AppController
             try {
                 ImageService::saveOriginal($tmpPath, $origDir . $origFilename);
                 ImageService::generateThumb($origDir . $origFilename, $thumbDir . $thumbFilename);
+
+                // Apply photo frame if the event has one configured.
+                if ($event->frame_filename) {
+                    $framePath = $uploadsDir . 'frames' . DIRECTORY_SEPARATOR
+                        . $event->id . DIRECTORY_SEPARATOR . 'frame.png';
+                    if (is_file($framePath)) {
+                        ImageService::applyFrame($thumbDir . $thumbFilename, $framePath);
+                    }
+                }
             } catch (\Throwable $e) {
                 @unlink($origDir . $origFilename);
                 @unlink($thumbDir . $thumbFilename);
