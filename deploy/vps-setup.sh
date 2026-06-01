@@ -24,7 +24,7 @@ EMAIL="${3:-admin@example.com}"
 APP_DIR="/var/www/photowall"
 
 # ---- CAMBIA ESTO con tu URL de GitHub ----
-REPO_URL="https://github.com/TU_USUARIO/photowall.git"
+REPO_URL="https://github.com/sharleeII/photowall.git"
 # ------------------------------------------
 
 echo ""
@@ -40,12 +40,12 @@ echo "[1/9] Actualizando sistema..."
 apt-get update -qq && apt-get upgrade -y -qq
 
 # [2] Install stack
-echo "[2/9] Instalando Nginx + PHP 8.2 + extensiones..."
+echo "[2/9] Instalando Nginx + PHP 8.3 + extensiones..."
 apt-get install -y -qq \
     nginx \
-    php8.2-fpm php8.2-cli \
-    php8.2-sqlite3 php8.2-gd php8.2-mbstring \
-    php8.2-xml php8.2-zip php8.2-intl php8.2-curl \
+    php8.3-fpm php8.3-cli \
+    php8.3-sqlite3 php8.3-gd php8.3-mbstring \
+    php8.3-xml php8.3-zip php8.3-intl php8.3-curl \
     git unzip curl \
     certbot python3-certbot-nginx
 
@@ -129,7 +129,7 @@ server {
     }
 
     location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
         include fastcgi_params;
