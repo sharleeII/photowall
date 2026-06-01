@@ -551,7 +551,7 @@ html, body {
   let newestEl     = null;
 
   /* ── Spotlight state ────────────────────────────────────── */
-  let spotIdx   = 0;
+  let spotQueue = [];    // zone indices pending in current round
   let spotTimer = null;
   let spotFrom  = null;  // saved bounding rect for return animation
 
@@ -725,6 +725,23 @@ html, body {
     countNum.textContent = n;
   }
 
+  /* ── Spotlight: queue helpers ────────────────────────────── */
+  function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function refillQueue() {
+    const occupied = [];
+    for (let i = 0; i < MAX_ZONES; i++) {
+      if (zoneEl[i]) occupied.push(i);
+    }
+    spotQueue = shuffleArray(occupied);
+  }
+
   /* ── Spotlight: target rect (centered, polaroid proportions) */
   function getTargetRect() {
     const vw = window.innerWidth;
@@ -742,18 +759,23 @@ html, body {
 
   /* ── Spotlight: open ──────────────────────────────────────── */
   function doSpotlight() {
-    // Build list of occupied zones
-    const occupied = [];
-    for (let i = 0; i < MAX_ZONES; i++) {
-      if (zoneEl[i]) occupied.push(zoneEl[i]);
-    }
-    if (occupied.length === 0) {
+    // Refill queue when empty (start of new round)
+    if (spotQueue.length === 0) refillQueue();
+    if (spotQueue.length === 0) {
       spotTimer = setTimeout(doSpotlight, 2000);
       return;
     }
 
-    const pol = occupied[spotIdx % occupied.length];
-    spotIdx++;
+    // Pop next zone; skip any that were evicted while waiting
+    let pol = null;
+    while (spotQueue.length > 0) {
+      const zoneIdx = spotQueue.pop();
+      if (zoneEl[zoneIdx]) { pol = zoneEl[zoneIdx]; break; }
+    }
+    if (!pol) {
+      spotTimer = setTimeout(doSpotlight, 500);
+      return;
+    }
 
     const polImg   = pol.querySelector('img');
     const polCapt  = pol.querySelector('.caption');
