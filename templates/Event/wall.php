@@ -19,262 +19,356 @@ $initialPhotos = array_map(fn ($p) => [
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title><?= h($event->title) ?> · Live Wall</title>
+
+    <!-- Swiper 11 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+
     <style>
+    /* ─── Reset ─── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
         width: 100%; height: 100%;
         background: #000;
         overflow: hidden;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        cursor: none;
+        font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         -webkit-font-smoothing: antialiased;
+        color: #fff;
+        cursor: none;
     }
 
-    /* ─── Stage ─── */
-    #stage { position: fixed; inset: 0; }
-
-    /* ─── Film-grain overlay (very subtle) ─── */
-    #grain {
-        position: fixed; inset: 0; z-index: 50;
-        pointer-events: none;
-        opacity: .035;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-        background-repeat: repeat;
-        background-size: 180px 180px;
-    }
-
-    /* ─── Slide base ─── */
-    .slide {
-        position: absolute;
+    /* ─── Swiper container fills the screen ─── */
+    .swiper {
+        position: fixed !important;
         inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+    }
+    .swiper-wrapper { width: 100%; height: 100%; }
+    .swiper-slide {
+        position: relative;
+        width: 100%;
+        height: 100%;
         overflow: hidden;
-        /* entrance handled by effect classes below */
+        /* Swiper creative adds its own transforms — overflow:hidden clips correctly */
     }
 
-    /* ─── Bokeh background (blurred, fills screen) ─── */
+    /* ─── Bokeh background (blurred fill) ─── */
     .slide-bg {
         position: absolute;
         inset: -30px;
         background-size: cover;
         background-position: center;
-        filter: blur(28px) brightness(.38) saturate(1.3);
-        transform: scale(1.08);
+        filter: blur(28px) brightness(0.38) saturate(1.4);
+        transform: scale(1.1);
         will-change: transform;
-        animation: bg-drift 16s ease-in-out forwards;
+    }
+    /* A gentle drift on the active slide's bg */
+    .swiper-slide-active .slide-bg {
+        animation: bg-drift 20s ease-in-out infinite alternate;
     }
     @keyframes bg-drift {
-        from { transform: scale(1.08) translate(0,0); }
-        to   { transform: scale(1.14) translate(-1.5%,-1%); }
+        from { transform: scale(1.10) translate(0, 0); }
+        to   { transform: scale(1.17) translate(-2%, -1.5%); }
     }
 
-    /* Vignette */
+    /* ─── Vignette ─── */
     .slide-vignette {
         position: absolute;
         inset: 0;
-        background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,.55) 100%);
+        background: radial-gradient(ellipse at 50% 50%,
+            transparent 30%,
+            rgba(0,0,0,.32) 65%,
+            rgba(0,0,0,.72) 100%);
         pointer-events: none;
-        z-index: 1;
+        z-index: 2;
     }
 
-    /* ─── Main photo (centered, full visible) ─── */
+    /* ─── Main photo — object-fit:contain, centered, leave room for footer ─── */
     .slide-photo {
         position: absolute;
         inset: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 24px 24px 130px;
-        z-index: 2;
+        /* 80px top-bar clearance + 130px footer clearance */
+        padding: 80px 32px 130px;
+        z-index: 3;
         will-change: transform;
     }
     .slide-photo img {
         max-width: 100%;
         max-height: 100%;
         object-fit: contain;
-        border-radius: 6px;
-        box-shadow: 0 24px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.07);
+        border-radius: 4px;
+        box-shadow: 0 24px 80px rgba(0,0,0,.7),
+                    0 4px  20px rgba(0,0,0,.5),
+                    0 0    0 1px rgba(255,255,255,.06);
         display: block;
+        user-select: none;
+        pointer-events: none;
     }
 
-    /* ─── Bottom info ─── */
+    /* ─── Ken Burns variants (4 rotating animations on .slide-photo wrapper) ─── */
+    .kb-1 .slide-photo { animation: kb1 16s ease-in-out forwards; }
+    .kb-2 .slide-photo { animation: kb2 16s ease-in-out forwards; }
+    .kb-3 .slide-photo { animation: kb3 16s ease-in-out forwards; }
+    .kb-4 .slide-photo { animation: kb4 16s ease-in-out forwards; }
+
+    @keyframes kb1 {
+        from { transform: scale(1.00) translate( 0%,    0%); }
+        to   { transform: scale(1.07) translate(-1.2%, -0.8%); }
+    }
+    @keyframes kb2 {
+        from { transform: scale(1.00) translate(  0%,   0%); }
+        to   { transform: scale(1.07) translate( 1.2%,  0.8%); }
+    }
+    @keyframes kb3 {
+        from { transform: scale(1.07) translate(-1%,  1%); }
+        to   { transform: scale(1.00) translate( 1%, -1%); }
+    }
+    @keyframes kb4 {
+        from { transform: scale(1.09) translate( 1%, -1%); }
+        to   { transform: scale(1.00) translate(-1%,  0.5%); }
+    }
+
+    /* ─── Footer (uploader info) ─── */
     .slide-footer {
         position: absolute;
         bottom: 0; left: 0; right: 0;
-        padding: 90px 44px 40px;
-        background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.22) 40%, rgba(0,0,0,.72) 100%);
+        padding: 90px 44px 42px;
+        background: linear-gradient(to bottom,
+            transparent 0%,
+            rgba(0,0,0,.18) 35%,
+            rgba(0,0,0,.70) 100%);
         display: flex;
         align-items: flex-end;
-        gap: 18px;
-        z-index: 3;
-        /* animated in by JS after slide becomes active */
+        gap: 20px;
+        z-index: 4;
+        /* Hidden by default — animated in when slide becomes active */
         opacity: 0;
-        transform: translateY(12px);
-        transition: opacity .8s ease .45s, transform .8s ease .45s;
+        transform: translateY(16px);
+        transition: opacity .75s ease .5s, transform .75s cubic-bezier(.22,1,.36,1) .5s;
     }
-    .slide.visible .slide-footer { opacity: 1; transform: translateY(0); }
+    /* Trigger: JS adds .swiper-slide-active which CSS picks up */
+    .swiper-slide-active .slide-footer {
+        opacity: 1;
+        transform: translateY(0);
+    }
 
     .avatar {
-        width: 58px; height: 58px;
+        width: 60px; height: 60px;
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         font-size: 22px; font-weight: 800;
         color: #fff;
         flex-shrink: 0;
-        border: 2px solid rgba(255,255,255,.3);
+        border: 2px solid rgba(255,255,255,.28);
+        box-shadow: 0 4px 16px rgba(0,0,0,.4);
+        letter-spacing: -.5px;
     }
     .uploader-block { flex: 1; min-width: 0; }
     .uploader-label {
-        font-size: 11px; font-weight: 700;
-        text-transform: uppercase; letter-spacing: .13em;
-        color: rgba(255,255,255,.52);
-        margin-bottom: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .14em;
+        color: rgba(255,255,255,.50);
+        margin-bottom: 5px;
     }
     .uploader-name {
-        font-size: clamp(26px, 3.8vw, 46px);
+        font-size: clamp(26px, 3.6vw, 44px);
         font-weight: 800;
         color: #fff;
         line-height: 1.05;
-        text-shadow: 0 3px 16px rgba(0,0,0,.5);
+        text-shadow: 0 3px 20px rgba(0,0,0,.55);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    .anon .uploader-label { display: none; }
-    .anon .uploader-name  { font-size: 16px; font-weight: 400; color: rgba(255,255,255,.35); }
+    .slide-footer.anon .uploader-label { display: none; }
+    .slide-footer.anon .uploader-name  {
+        font-size: 15px;
+        font-weight: 400;
+        color: rgba(255,255,255,.3);
+    }
 
-    /* ───────── TRANSITION EFFECTS ───────── */
+    /* ─── Film-grain overlay ─── */
+    #grain {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        pointer-events: none;
+        opacity: .035;
+        /* Static SVG noise tile */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        background-size: 200px 200px;
+    }
 
-    /* 1 — simple crossfade (default) */
-    .fx-fade   { opacity: 0; transition: opacity 1.3s ease; }
-    .fx-fade.visible { opacity: 1; }
-
-    /* 2 — zoom in from center */
-    .fx-zoom   { opacity: 0; transform: scale(.94); transition: opacity 1.2s ease, transform 1.4s cubic-bezier(.22,1,.36,1); }
-    .fx-zoom.visible { opacity: 1; transform: scale(1); }
-
-    /* 3 — slide from right */
-    .fx-right  { opacity: 0; transform: translateX(7%); transition: opacity .9s ease, transform 1s cubic-bezier(.22,1,.36,1); }
-    .fx-right.visible { opacity: 1; transform: translateX(0); }
-
-    /* 4 — slide from bottom */
-    .fx-up     { opacity: 0; transform: translateY(6%); transition: opacity .9s ease, transform 1s cubic-bezier(.22,1,.36,1); }
-    .fx-up.visible { opacity: 1; transform: translateY(0); }
-
-    /* 5 — flip (horizontal scale) */
-    .fx-flip   { opacity: 0; transform: scaleX(.88) translateX(-3%); transition: opacity .9s ease, transform 1.1s cubic-bezier(.34,1.56,.64,1); }
-    .fx-flip.visible { opacity: 1; transform: scaleX(1) translateX(0); }
-
-    /* ─── Ken Burns variations (applied to .slide-photo) ─── */
-    .kb-1 .slide-photo { animation: kb1 14s ease-in-out forwards; }
-    .kb-2 .slide-photo { animation: kb2 14s ease-in-out forwards; }
-    .kb-3 .slide-photo { animation: kb3 14s ease-in-out forwards; }
-    .kb-4 .slide-photo { animation: kb4 14s ease-in-out forwards; }
-
-    @keyframes kb1 { from{transform:scale(1) translate(0,0)}        to{transform:scale(1.07) translate(-1.5%,-1%)} }
-    @keyframes kb2 { from{transform:scale(1) translate(0,0)}        to{transform:scale(1.07) translate(1.5%,1%)}  }
-    @keyframes kb3 { from{transform:scale(1.06) translate(-1%,1%)}  to{transform:scale(1)    translate(1%,-1%)}   }
-    @keyframes kb4 { from{transform:scale(1.08) translate(1%,-1%)}  to{transform:scale(1)    translate(-1%,1%)}   }
-
-    /* ─── NEW PHOTO — flash pulse ─── */
+    /* ─── White flash on new photo ─── */
     #flash {
-        position: fixed; inset: 0; z-index: 40;
+        position: fixed;
+        inset: 0;
+        z-index: 80;
         background: #fff;
         opacity: 0;
         pointer-events: none;
         transition: opacity .08s ease;
     }
-    #flash.pop { opacity: .18; }
+    #flash.pop { opacity: .15; }
 
-    /* ─── Toast ─── */
+    /* ─── Toast pill ─── */
     #toast {
         position: fixed;
-        top: 76px; left: 50%;
-        transform: translateX(-50%) translateY(-14px);
-        padding: 10px 22px;
+        top: 72px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-24px);
+        padding: 10px 24px;
         border-radius: 999px;
-        font-size: 14px; font-weight: 700;
+        font-size: 14px;
+        font-weight: 700;
         color: #fff;
         white-space: nowrap;
-        box-shadow: 0 8px 32px rgba(0,0,0,.45);
+        box-shadow: 0 8px 32px rgba(0,0,0,.5);
         opacity: 0;
-        transition: opacity .35s ease, transform .35s ease;
+        transition: opacity .35s cubic-bezier(.22,1,.36,1), transform .35s cubic-bezier(.22,1,.36,1);
         pointer-events: none;
-        z-index: 60;
+        z-index: 95;
     }
-    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
 
     /* ─── Top bar ─── */
     #topbar {
-        position: fixed; top: 0; left: 0; right: 0;
-        padding: max(env(safe-area-inset-top,0px),18px) 28px 36px;
-        display: flex; align-items: center; justify-content: space-between;
-        background: linear-gradient(to bottom, rgba(0,0,0,.6) 0%, transparent 100%);
-        z-index: 55; pointer-events: none;
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        padding: max(env(safe-area-inset-top, 0px), 18px) 28px 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(to bottom, rgba(0,0,0,.65) 0%, transparent 100%);
+        z-index: 92;
+        pointer-events: none;
+        gap: 12px;
     }
     .live-pill {
-        display: flex; align-items: center; gap: 7px;
-        background: rgba(255,255,255,.11);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255,255,255,.16);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: rgba(255,255,255,.10);
+        backdrop-filter: blur(10px) saturate(1.8);
+        -webkit-backdrop-filter: blur(10px) saturate(1.8);
+        border: 1px solid rgba(255,255,255,.18);
         border-radius: 999px;
-        padding: 5px 14px 5px 10px;
+        padding: 6px 14px 6px 10px;
+        flex-shrink: 0;
     }
     .live-dot {
         width: 8px; height: 8px;
         border-radius: 50%;
         background: #ff3b30;
-        animation: blink 1.6s ease-in-out infinite;
+        animation: live-pulse 1.6s ease-in-out infinite;
+        flex-shrink: 0;
     }
-    @keyframes blink {
-        0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,59,48,.5)}
-        50%{opacity:.4;box-shadow:0 0 0 5px rgba(255,59,48,0)}
+    @keyframes live-pulse {
+        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,59,48,.55); }
+        50%       { opacity: .45; box-shadow: 0 0 0 6px rgba(255,59,48,.0); }
     }
-    .live-text { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #fff; }
+    .live-text {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: #fff;
+    }
     #event-name-top {
-        font-size: 15px; font-weight: 700; color: rgba(255,255,255,.88);
-        flex: 1; padding: 0 14px; text-align: center;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        flex: 1;
+        font-size: 15px;
+        font-weight: 700;
+        color: rgba(255,255,255,.88);
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 0 8px;
     }
     #photo-counter {
-        font-size: 13px; font-weight: 600;
-        color: rgba(255,255,255,.5);
-        display: flex; align-items: center; gap: 5px;
-        min-width: 52px; justify-content: flex-end;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255,255,255,.50);
+        flex-shrink: 0;
+        min-width: 48px;
+        justify-content: flex-end;
     }
 
     /* ─── Empty state ─── */
     #empty {
-        position: fixed; inset: 0; z-index: 5;
-        display: flex; flex-direction: column;
-        align-items: center; justify-content: center; gap: 16px;
-        color: rgba(255,255,255,.25);
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: #0a0a0a;
+        color: rgba(255,255,255,.22);
     }
-    #empty .e-ico { font-size: 72px; }
-    #empty .e-txt { font-size: 22px; font-weight: 500; }
-    #empty .e-sub { font-size: 14px; opacity: .6; margin-top: -6px; }
+    #empty .e-ico { font-size: 80px; line-height: 1; }
+    #empty .e-txt { font-size: 24px; font-weight: 600; }
+    #empty .e-sub { font-size: 14px; opacity: .6; margin-top: -4px; }
+    #empty .e-pulse {
+        width: 14px; height: 14px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,.18);
+        border-top-color: rgba(255,255,255,.55);
+        animation: spin 1s linear infinite;
+        margin-top: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ─── Fullscreen btn ─── */
+    /* ─── Fullscreen button ─── */
     #fs-btn {
-        position: fixed; bottom: 26px; right: 26px;
-        width: 42px; height: 42px; border-radius: 11px;
-        background: rgba(255,255,255,.1);
+        position: fixed;
+        bottom: 28px; right: 28px;
+        width: 44px; height: 44px;
+        border-radius: 12px;
+        background: rgba(255,255,255,.09);
         backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,.16);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,.15);
         cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-        z-index: 70; opacity: 0; transition: opacity .3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 96;
+        opacity: 0;
+        transition: opacity .3s ease, background .2s ease;
     }
     body:hover #fs-btn { opacity: 1; cursor: default; }
-    #fs-btn svg { width: 20px; height: 20px; fill: rgba(255,255,255,.8); }
+    #fs-btn:hover { background: rgba(255,255,255,.18); cursor: pointer !important; }
+    #fs-btn svg { width: 20px; height: 20px; fill: rgba(255,255,255,.82); }
     </style>
 </head>
 <body>
 
-<div id="stage"></div>
+<!-- Swiper -->
+<div class="swiper" id="wall-swiper">
+    <div class="swiper-wrapper" id="slides-wrapper">
+        <!-- Slides injected by JS -->
+    </div>
+</div>
+
 <div id="grain"></div>
 <div id="flash"></div>
 
+<!-- Top bar -->
 <div id="topbar">
     <div class="live-pill">
         <div class="live-dot"></div>
@@ -289,79 +383,91 @@ $initialPhotos = array_map(fn ($p) => [
 
 <div id="toast"></div>
 
+<!-- Empty state (shown only while pool is empty) -->
 <div id="empty" <?= !empty($photos) ? 'style="display:none"' : '' ?>>
     <div class="e-ico">📷</div>
     <div class="e-txt">Esperando las primeras fotos</div>
     <div class="e-sub">Escanea el QR y sube la primera</div>
+    <div class="e-pulse"></div>
 </div>
 
-<button id="fs-btn" onclick="toggleFs()" title="Pantalla completa">
-    <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+<!-- Fullscreen button -->
+<button id="fs-btn" onclick="toggleFs()" title="Pantalla completa" aria-label="Pantalla completa">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+    </svg>
 </button>
+
+<!-- Swiper 11 JS -->
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
 <script>
 (function () {
     'use strict';
 
-    const SLUG     = '<?= h($event->slug) ?>';
-    const ACCENT   = '<?= h($event->theme_color) ?>';
-    const INTERVAL = 7000;   // ms per slide
-    const POLL_MS  = 3000;   // polling
+    /* ── Config ── */
+    const SLUG       = <?= json_encode($event->slug) ?>;
+    const ACCENT     = <?= json_encode($event->theme_color) ?>;
+    const INTERVAL   = 7000;   // ms per slide (our own autoplay)
+    const POLL_MS    = 3000;   // new-photo polling interval
+    const SPEED      = 1400;   // Swiper transition speed
 
-    const FX  = ['fx-fade','fx-zoom','fx-right','fx-up','fx-flip'];
-    const KBS = ['kb-1','kb-2','kb-3','kb-4'];
-
-    let pool     = <?= json_encode($initialPhotos, JSON_UNESCAPED_SLASHES) ?>;
+    /* ── State ── */
+    let pool     = <?= json_encode($initialPhotos, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
     let latestTs = pool.length ? Math.max(...pool.map(p => p.ts)) : 0;
-    let idx      = 0;
-    let timer    = null;
-    let current  = null;
-    let fxIdx    = 0;
     let kbIdx    = 0;
+    let autoTimer = null;
 
-    const stage    = document.getElementById('stage');
-    const toast    = document.getElementById('toast');
-    const flash    = document.getElementById('flash');
-    const empty    = document.getElementById('empty');
+    /* ── DOM refs ── */
+    const wrapper  = document.getElementById('slides-wrapper');
+    const toastEl  = document.getElementById('toast');
+    const flashEl  = document.getElementById('flash');
+    const emptyEl  = document.getElementById('empty');
     const countEl  = document.getElementById('count-num');
 
+    /* ── Ken Burns cycle (4 variants) ── */
+    const KB = ['kb-1', 'kb-2', 'kb-3', 'kb-4'];
+    function nextKb() { return KB[kbIdx++ % KB.length]; }
+
+    /* ── Helpers ── */
     function initials(name) {
         if (!name) return '?';
-        return name.trim().split(/\s+/).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+        return name.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
     }
     function updateCount() { countEl.textContent = pool.length; }
 
-    function nextFx()  { const v = FX[fxIdx % FX.length];  fxIdx++;  return v; }
-    function nextKb()  { const v = KBS[kbIdx % KBS.length]; kbIdx++;  return v; }
-
+    /* ── Build a Swiper slide DOM node ── */
     function buildSlide(photo) {
-        const el = document.createElement('div');
-        el.className = `slide ${nextFx()} ${nextKb()}`;
+        const slide = document.createElement('div');
+        slide.className = 'swiper-slide ' + nextKb();
 
-        // Bokeh background
+        /* Bokeh bg */
         const bg = document.createElement('div');
         bg.className = 'slide-bg';
-        bg.style.backgroundImage = `url(${photo.thumb})`;
-        el.appendChild(bg);
+        bg.style.backgroundImage = `url(${CSS.escape ? photo.thumb : photo.thumb})`;
+        // CSS.escape not needed for URLs set via style — just assign directly
+        bg.style.backgroundImage = `url("${photo.thumb}")`;
+        slide.appendChild(bg);
 
-        // Vignette
+        /* Vignette */
         const vig = document.createElement('div');
         vig.className = 'slide-vignette';
-        el.appendChild(vig);
+        slide.appendChild(vig);
 
-        // Main photo (contain — portrait safe)
+        /* Main photo */
         const pw = document.createElement('div');
         pw.className = 'slide-photo';
         const img = document.createElement('img');
         img.src = photo.thumb;
-        img.alt = '';
+        img.alt = photo.uploader ? `Foto de ${photo.uploader}` : 'Foto';
         img.loading = 'eager';
+        img.decoding = 'async';
         pw.appendChild(img);
-        el.appendChild(pw);
+        slide.appendChild(pw);
 
-        // Footer
+        /* Footer */
+        const hasName = !!(photo.uploader && photo.uploader.trim());
         const ft = document.createElement('div');
-        const hasName = !!photo.uploader;
         ft.className = 'slide-footer' + (hasName ? '' : ' anon');
 
         if (hasName) {
@@ -374,95 +480,175 @@ $initialPhotos = array_map(fn ($p) => [
 
         const blk = document.createElement('div');
         blk.className = 'uploader-block';
+
         const lbl = document.createElement('div');
         lbl.className = 'uploader-label';
         lbl.textContent = 'Foto de';
+
         const nm = document.createElement('div');
         nm.className = 'uploader-name';
         nm.textContent = photo.uploader || 'Anónimo';
-        blk.append(lbl, nm);
+
+        blk.appendChild(lbl);
+        blk.appendChild(nm);
         ft.appendChild(blk);
-        el.appendChild(ft);
+        slide.appendChild(ft);
 
-        return el;
+        return slide;
     }
 
-    function triggerFlash() {
-        flash.classList.add('pop');
-        setTimeout(() => flash.classList.remove('pop'), 200);
+    /* ── Initialise Swiper with creative effect ── */
+    let swiper = null;
+
+    function initSwiper() {
+        swiper = new Swiper('#wall-swiper', {
+            effect: 'creative',
+            creativeEffect: {
+                prev: {
+                    shadow: true,
+                    translate: [0, 0, -800],
+                    rotate: [0, -8, 0],
+                    opacity: 0.2,
+                },
+                next: {
+                    translate: ['100%', 0, 0],
+                },
+            },
+            speed: SPEED,
+            allowTouchMove: false,
+            loop: false,
+            /* We drive autoplay ourselves — do NOT use Swiper's autoplay */
+        });
     }
 
-    function showSlide(photo, isNew = false) {
-        const prev = current;
-        if (prev) {
-            prev.classList.remove('visible');
-            setTimeout(() => prev.remove(), 1800);
+    /* ── Populate initial slides then boot Swiper ── */
+    function bootstrap() {
+        if (pool.length === 0) {
+            /* Stay on empty state; Swiper still initialised (0 slides) */
+            initSwiper();
+            startAutoplay();
+            return;
         }
-        if (empty) empty.style.display = 'none';
-        if (isNew) triggerFlash();
 
-        const el = buildSlide(photo);
-        stage.appendChild(el);
-        // Double RAF ensures transition triggers
-        requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
-        current = el;
+        pool.forEach(photo => wrapper.appendChild(buildSlide(photo)));
+        updateCount();
+        emptyEl.style.display = 'none';
 
-        if (isNew) showToast(photo.uploader);
+        initSwiper();
+        startAutoplay();
     }
 
-    function showToast(name) {
-        toast.textContent = name ? `📸 Nueva foto de ${name}` : '📸 Nueva foto';
-        toast.style.background = ACCENT;
-        toast.classList.add('show');
-        clearTimeout(toast._t);
-        toast._t = setTimeout(() => toast.classList.remove('show'), 5000);
+    /* ── Our own autoplay: setInterval calls swiper.slideNext() ── */
+    function startAutoplay() {
+        stopAutoplay();
+        if (!swiper || swiper.slides.length < 1) return;
+        autoTimer = setInterval(() => {
+            if (!swiper || swiper.slides.length === 0) return;
+            if (swiper.isEnd) {
+                swiper.slideTo(0, SPEED);
+            } else {
+                swiper.slideNext(SPEED);
+            }
+        }, INTERVAL);
     }
 
-    function next() {
-        if (!pool.length) return;
-        showSlide(pool[idx % pool.length]);
-        idx++;
+    function stopAutoplay() {
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
     }
 
-    function startLoop() {
-        if (timer) clearInterval(timer);
-        if (pool.length) next();
-        timer = setInterval(next, INTERVAL);
+    /* ── Flash ── */
+    function triggerFlash() {
+        flashEl.classList.add('pop');
+        setTimeout(() => flashEl.classList.remove('pop'), 220);
     }
 
+    /* ── Toast pill from top ── */
+    let toastTimer = null;
+    function showToast(uploaderName) {
+        const msg = uploaderName ? `📸 Nueva foto de ${uploaderName}` : '📸 Nueva foto';
+        toastEl.textContent = msg;
+        toastEl.style.background = ACCENT;
+        toastEl.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
+    }
+
+    /* ── Polling for new photos ── */
     async function poll() {
         try {
-            const r = await fetch(`/e/${SLUG}/photos/since?since=${latestTs}`, { cache: 'no-store' });
-            if (!r.ok) return;
-            const data = await r.json();
-            if (!data.photos?.length) return;
+            const url = `/e/${encodeURIComponent(SLUG)}/photos/since?since=${latestTs}`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data.photos || data.photos.length === 0) return;
 
+            const genuinelyNew = [];
             data.photos.forEach(p => {
                 if (!pool.find(x => x.id === p.id)) {
                     pool.push(p);
                     if (p.ts > latestTs) latestTs = p.ts;
+                    genuinelyNew.push(p);
                 }
             });
+            if (genuinelyNew.length === 0) return;
+
             updateCount();
-            showSlide(data.photos.at(-1), true);
-            clearInterval(timer);
-            timer = setInterval(next, INTERVAL);
-        } catch (_) {}
+            emptyEl.style.display = 'none';
+
+            /* If Swiper not yet initialised with real slides, rebuild */
+            if (!swiper || swiper.slides.length === 0) {
+                /* Clear wrapper and rebuild from full pool */
+                wrapper.innerHTML = '';
+                pool.forEach(photo => wrapper.appendChild(buildSlide(photo)));
+                if (swiper) swiper.destroy(true, true);
+                kbIdx = 0;
+                initSwiper();
+                startAutoplay();
+                return;
+            }
+
+            /* Append each new slide */
+            genuinelyNew.forEach(p => {
+                swiper.appendSlide(buildSlide(p));
+            });
+
+            const lastIdx = swiper.slides.length - 1;
+
+            /* Bump autoplay timer reset so we get a clean 7s after landing */
+            stopAutoplay();
+
+            /* Flash + slide to new photo */
+            triggerFlash();
+            swiper.slideTo(lastIdx, SPEED);
+
+            /* Toast for the last uploader */
+            showToast(genuinelyNew.at(-1).uploader);
+
+            /* Restart autoplay after transition settles */
+            setTimeout(startAutoplay, SPEED + 200);
+
+        } catch (_) { /* network hiccup — silently ignore */ }
     }
 
-    startLoop();
+    /* ── Fullscreen ── */
+    window.toggleFs = function () {
+        if (document.fullscreenElement) {
+            document.exitFullscreen?.();
+        } else {
+            document.documentElement.requestFullscreen?.();
+        }
+    };
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('#fs-btn')) return; /* handled by its own onclick */
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.();
+        }
+    });
+
+    /* ── Boot ── */
+    bootstrap();
     setInterval(poll, POLL_MS);
 
-    // ─── Fullscreen ───
-    window.toggleFs = function() {
-        document.fullscreenElement
-            ? document.exitFullscreen?.()
-            : document.documentElement.requestFullscreen?.();
-    };
-    document.addEventListener('click', () => {
-        if (!document.fullscreenElement)
-            document.documentElement.requestFullscreen?.();
-    });
 })();
 </script>
 </body>

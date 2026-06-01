@@ -64,18 +64,41 @@ $this->assign('title', $event->title . ' · Admin');
 
     <div class="card">
         <h2 class="font-semibold mb-3">URLs</h2>
-        <div class="space-y-3 text-sm">
+        <div class="space-y-4 text-sm">
             <div>
-                <p class="text-slate-500">Subida (invitado):</p>
+                <p class="text-slate-500 mb-1">Subida (invitado):</p>
                 <p class="font-mono text-xs break-all bg-slate-50 p-2 rounded border"><?= h($publicUrl) ?></p>
             </div>
+
             <div>
-                <p class="text-slate-500">Slideshow proyector:</p>
-                <p class="font-mono text-xs break-all bg-slate-50 p-2 rounded border"><?= h($wallUrl) ?></p>
-                <a href="<?= h($wallUrl) ?>" target="_blank" class="inline-block mt-2 text-violet-700 underline">Abrir slideshow ↗</a>
+                <p class="text-slate-500 mb-2 font-medium">Proyector — elige el modo:</p>
+                <div class="space-y-2">
+                    <?php
+                    $wallBase = rtrim($wallUrl, '/');
+                    $walls = [
+                        ['label' => '🎬 Cinema', 'desc' => 'Swiper 3D + bokeh', 'url' => $wallBase],
+                        ['label' => '📱 Stories', 'desc' => 'Estilo Instagram', 'url' => $wallBase . '/stories'],
+                        ['label' => '🎉 Fiesta', 'desc' => 'Polaroids + confetti', 'url' => $wallBase . '/fiesta'],
+                    ];
+                    foreach ($walls as $w): ?>
+                    <div class="flex items-center gap-3 bg-slate-50 border rounded p-2">
+                        <div class="flex-1 min-w-0">
+                            <span class="font-semibold"><?= $w['label'] ?></span>
+                            <span class="text-slate-400 ml-1"><?= $w['desc'] ?></span>
+                            <p class="font-mono text-xs text-slate-400 truncate"><?= h($w['url']) ?></p>
+                        </div>
+                        <a href="<?= h($w['url']) ?>" target="_blank"
+                           class="flex-shrink-0 px-3 py-1.5 rounded-lg text-white text-xs font-semibold"
+                           style="background:<?= h($event->theme_color) ?>">
+                            Abrir ↗
+                        </a>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
+
             <div>
-                <p class="text-slate-500">Galería pública:</p>
+                <p class="text-slate-500 mb-1">Galería pública:</p>
                 <p class="font-mono text-xs break-all bg-slate-50 p-2 rounded border"><?= h($galleryUrl) ?></p>
             </div>
         </div>

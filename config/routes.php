@@ -56,6 +56,12 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/e/{slug}/upload', ['controller' => 'Upload', 'action' => 'store'])
             ->setPatterns(['slug' => '[a-z0-9\-]+'])
             ->setPass(['slug']);
+        $builder->connect('/e/{slug}/wall/stories', ['controller' => 'Event', 'action' => 'wallStories'])
+            ->setPatterns(['slug' => '[a-z0-9\-]+'])
+            ->setPass(['slug']);
+        $builder->connect('/e/{slug}/wall/fiesta', ['controller' => 'Event', 'action' => 'wallFiesta'])
+            ->setPatterns(['slug' => '[a-z0-9\-]+'])
+            ->setPass(['slug']);
         $builder->connect('/e/{slug}/wall', ['controller' => 'Event', 'action' => 'wall'])
             ->setPatterns(['slug' => '[a-z0-9\-]+'])
             ->setPass(['slug']);

@@ -52,6 +52,34 @@ class EventController extends AppController
         $this->set(compact('event', 'photos'));
     }
 
+    /** Instagram Stories-style wall. */
+    public function wallStories(string $slug): void
+    {
+        $event = $this->getEventBySlug($slug);
+        $photos = $this->Photos->find()
+            ->where(['event_id' => $event->id, 'status' => 'approved'])
+            ->orderBy(['created' => 'DESC'])
+            ->limit(50)
+            ->all()
+            ->toList();
+        $this->set('themeColor', $event->theme_color);
+        $this->set(compact('event', 'photos'));
+    }
+
+    /** Polaroid party wall. */
+    public function wallFiesta(string $slug): void
+    {
+        $event = $this->getEventBySlug($slug);
+        $photos = $this->Photos->find()
+            ->where(['event_id' => $event->id, 'status' => 'approved'])
+            ->orderBy(['created' => 'DESC'])
+            ->limit(50)
+            ->all()
+            ->toList();
+        $this->set('themeColor', $event->theme_color);
+        $this->set(compact('event', 'photos'));
+    }
+
     /**
      * JSON endpoint polled by wall.js every 3 s.
      * Returns photos approved *after* the given timestamp.
