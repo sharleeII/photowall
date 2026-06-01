@@ -10,86 +10,122 @@
  */
 $this->assign('title', $event->title . ' · Admin');
 ?>
-<div class="flex items-start justify-between mb-6 gap-4 flex-wrap">
+
+<!-- Header -->
+<div class="flex items-start justify-between mb-7 gap-4 flex-wrap">
     <div>
-        <h1 class="text-2xl font-bold flex items-center gap-2">
-            <span class="inline-block w-4 h-4 rounded" style="background: <?= h($event->theme_color) ?>"></span>
+        <a href="/admin" class="text-sm text-slate-400 hover:text-slate-600 transition inline-flex items-center gap-1 mb-2">
+            ← Eventos
+        </a>
+        <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+            <span class="inline-block w-4 h-4 rounded-md shadow-sm border border-black/10"
+                  style="background: <?= h($event->theme_color) ?>"></span>
             <?= h($event->title) ?>
+            <?php if ($event->is_open): ?>
+                <span class="badge badge-green text-xs">Abierto</span>
+            <?php else: ?>
+                <span class="badge badge-slate text-xs">Cerrado</span>
+            <?php endif; ?>
         </h1>
-        <p class="text-sm text-slate-500 mt-1 font-mono"><?= h($event->slug) ?></p>
+        <p class="text-slate-400 text-sm mt-1 font-mono"><?= h($event->slug) ?></p>
     </div>
     <div class="flex gap-2 flex-wrap">
-        <a href="/admin/events/<?= $event->id ?>/edit" class="btn btn-secondary inline-flex items-center justify-center px-4 py-2 rounded-lg bg-slate-200 text-slate-800 hover:bg-slate-300 font-medium">Editar</a>
+        <a href="/admin/events/<?= $event->id ?>/edit" class="btn btn-secondary">Editar</a>
         <form method="post" action="/admin/events/<?= $event->id ?>/toggle-open" class="inline">
-            <button class="inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium <?= $event->is_open ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' ?>">
+            <button class="btn <?= $event->is_open ? 'btn-warning' : 'btn-success' ?>">
                 <?= $event->is_open ? 'Cerrar uploads' : 'Reabrir uploads' ?>
             </button>
         </form>
-        <a href="/admin/events/<?= $event->id ?>/zip" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-slate-200 text-slate-800 hover:bg-slate-300 font-medium">Descargar ZIP</a>
+        <a href="/admin/events/<?= $event->id ?>/zip" class="btn btn-secondary">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar ZIP
+        </a>
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-    <div class="card text-center">
-        <p class="text-3xl font-bold text-emerald-600"><?= $stats['approved'] ?></p>
-        <p class="text-sm text-slate-500 mt-1">Aprobadas</p>
+<!-- Stats -->
+<div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="card card-sm text-center">
+        <p class="text-3xl font-bold text-emerald-600 tabular-nums"><?= $stats['approved'] ?></p>
+        <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mt-1">Aprobadas</p>
     </div>
-    <div class="card text-center">
-        <p class="text-3xl font-bold <?= $stats['pending'] > 0 ? 'text-amber-600' : 'text-slate-400' ?>"><?= $stats['pending'] ?></p>
-        <p class="text-sm text-slate-500 mt-1">
+    <div class="card card-sm text-center <?= $stats['pending'] > 0 ? 'ring-2 ring-amber-300' : '' ?>">
+        <p class="text-3xl font-bold tabular-nums <?= $stats['pending'] > 0 ? 'text-amber-500' : 'text-slate-300' ?>">
+            <?= $stats['pending'] ?>
+        </p>
+        <p class="text-xs font-semibold uppercase tracking-wide mt-1">
             <?php if ($stats['pending'] > 0): ?>
-                <a href="/admin/events/<?= $event->id ?>/moderate" class="text-amber-700 underline">Moderar</a>
+                <a href="/admin/events/<?= $event->id ?>/moderate"
+                   class="text-amber-600 hover:text-amber-700 underline underline-offset-2">
+                    Moderar →
+                </a>
             <?php else: ?>
-                Pendientes
+                <span class="text-slate-400">Pendientes</span>
             <?php endif; ?>
         </p>
     </div>
-    <div class="card text-center">
-        <p class="text-3xl font-bold text-slate-400"><?= $stats['rejected'] ?></p>
-        <p class="text-sm text-slate-500 mt-1">Rechazadas</p>
+    <div class="card card-sm text-center">
+        <p class="text-3xl font-bold text-slate-300 tabular-nums"><?= $stats['rejected'] ?></p>
+        <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mt-1">Rechazadas</p>
     </div>
 </div>
 
+<!-- QR + URLs -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+    <!-- QR -->
     <div class="card">
-        <h2 class="font-semibold mb-3">QR para invitados</h2>
-        <p class="text-sm text-slate-600 mb-3">Imprime o proyecta este código a la entrada. Apunta a la URL pública del evento.</p>
-        <div class="bg-white rounded border border-slate-200 inline-block p-2">
-            <img src="/admin/events/<?= $event->id ?>/qr" alt="QR" class="w-64 h-64">
+        <h2 class="card-title">QR para invitados</h2>
+        <p class="text-sm text-slate-400 mb-4 leading-relaxed">
+            Imprime o proyecta este código a la entrada. Apunta a la URL pública del evento.
+        </p>
+        <div class="bg-white rounded-lg border border-slate-100 shadow-sm inline-block p-3">
+            <img src="/admin/events/<?= $event->id ?>/qr" alt="QR" class="w-56 h-56">
         </div>
-        <div class="mt-3 flex gap-2">
-            <a href="/admin/events/<?= $event->id ?>/qr" download="qr_<?= h($event->slug) ?>.png" class="text-sm text-violet-700 underline">Descargar PNG</a>
+        <div class="mt-3">
+            <a href="/admin/events/<?= $event->id ?>/qr"
+               download="qr_<?= h($event->slug) ?>.png"
+               class="text-sm text-violet-600 hover:text-violet-800 font-medium inline-flex items-center gap-1">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Descargar PNG
+            </a>
         </div>
     </div>
 
+    <!-- URLs -->
     <div class="card">
-        <h2 class="font-semibold mb-3">URLs</h2>
+        <h2 class="card-title">URLs</h2>
         <div class="space-y-4 text-sm">
+
+            <!-- Upload -->
             <div>
-                <p class="text-slate-500 mb-1">Subida (invitado):</p>
-                <p class="font-mono text-xs break-all bg-slate-50 p-2 rounded border"><?= h($publicUrl) ?></p>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Subida para invitados</p>
+                <p class="font-mono text-xs break-all bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-slate-600 select-all">
+                    <?= h($publicUrl) ?>
+                </p>
             </div>
 
+            <div class="divider"></div>
+
+            <!-- Walls -->
             <div>
-                <p class="text-slate-500 mb-2 font-medium">Proyector — elige el modo:</p>
-                <div class="space-y-2">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Proyector — elige el modo</p>
+                <div class="space-y-1.5">
                     <?php
                     $wallBase = rtrim($wallUrl, '/');
                     $walls = [
-                        ['label' => '🎬 Cinema', 'desc' => 'Swiper 3D + bokeh', 'url' => $wallBase],
-                        ['label' => '📱 Stories', 'desc' => 'Grid + spotlight', 'url' => $wallBase . '/stories'],
-                        ['label' => '🎉 Fiesta', 'desc' => 'Polaroids + confetti', 'url' => $wallBase . '/fiesta'],
-                        ['label' => '📲 Feed', 'desc' => 'Estilo Instagram', 'url' => $wallBase . '/feed'],
+                        ['label' => '🎬 Cinema',  'desc' => 'Carrusel 3D + bokeh',   'url' => $wallBase],
+                        ['label' => '⬛ Mosaico', 'desc' => 'Grid + spotlight',       'url' => $wallBase . '/stories'],
+                        ['label' => '🎉 Fiesta',  'desc' => 'Polaroids + confetti',   'url' => $wallBase . '/fiesta'],
+                        ['label' => '📲 Feed',    'desc' => 'Estilo Instagram',        'url' => $wallBase . '/feed'],
                     ];
                     foreach ($walls as $w): ?>
-                    <div class="flex items-center gap-3 bg-slate-50 border rounded p-2">
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 hover:border-slate-300 transition">
                         <div class="flex-1 min-w-0">
-                            <span class="font-semibold"><?= $w['label'] ?></span>
-                            <span class="text-slate-400 ml-1"><?= $w['desc'] ?></span>
-                            <p class="font-mono text-xs text-slate-400 truncate"><?= h($w['url']) ?></p>
+                            <span class="font-semibold text-slate-800 text-[13px]"><?= $w['label'] ?></span>
+                            <span class="text-slate-400 text-xs ml-1.5"><?= $w['desc'] ?></span>
                         </div>
                         <a href="<?= h($w['url']) ?>" target="_blank"
-                           class="flex-shrink-0 px-3 py-1.5 rounded-lg text-white text-xs font-semibold"
+                           class="flex-shrink-0 px-2.5 py-1 rounded-md text-white text-xs font-semibold shadow-sm"
                            style="background:<?= h($event->theme_color) ?>">
                             Abrir ↗
                         </a>
@@ -98,26 +134,43 @@ $this->assign('title', $event->title . ' · Admin');
                 </div>
             </div>
 
+            <div class="divider"></div>
+
+            <!-- Gallery -->
             <div>
-                <p class="text-slate-500 mb-1">Galería pública:</p>
-                <p class="font-mono text-xs break-all bg-slate-50 p-2 rounded border"><?= h($galleryUrl) ?></p>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Galería pública</p>
+                <div class="flex items-center gap-2">
+                    <p class="font-mono text-xs break-all bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-slate-600 flex-1 select-all">
+                        <?= h($galleryUrl) ?>
+                    </p>
+                    <a href="<?= h($galleryUrl) ?>" target="_blank"
+                       class="flex-shrink-0 btn btn-secondary text-xs px-2.5 py-1.5">
+                        Ver ↗
+                    </a>
+                </div>
             </div>
+
         </div>
     </div>
 </div>
 
+<!-- Latest photos -->
 <?php if (!empty($latest)): ?>
     <div class="card">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="font-semibold">Últimas fotos aprobadas</h2>
-            <a href="<?= h($galleryUrl) ?>" target="_blank" class="text-sm text-violet-700 underline">Ver galería completa ↗</a>
+            <h2 class="card-title mb-0">Últimas fotos aprobadas</h2>
+            <a href="<?= h($galleryUrl) ?>" target="_blank"
+               class="text-sm text-violet-600 hover:text-violet-800 font-medium">
+                Ver galería completa ↗
+            </a>
         </div>
-        <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+        <div class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-2">
             <?php foreach ($latest as $photo): ?>
-                <a href="/files/<?= $event->id ?>/orig/<?= h($photo->filename_original) ?>" target="_blank">
+                <a href="/files/<?= $event->id ?>/orig/<?= h($photo->filename_original) ?>" target="_blank"
+                   class="block">
                     <img src="/files/<?= $event->id ?>/thumb/<?= h($photo->filename_thumb) ?>"
                          alt="" loading="lazy"
-                         class="w-full aspect-square object-cover rounded hover:opacity-80 transition">
+                         class="w-full aspect-square object-cover rounded-lg border border-slate-100 hover:opacity-80 hover:scale-105 transition">
                 </a>
             <?php endforeach; ?>
         </div>
