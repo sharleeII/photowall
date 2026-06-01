@@ -50,7 +50,7 @@ html, body {
   overflow: hidden;
   background: #0a0a0a;
   font-family: system-ui, sans-serif;
-  cursor: none;
+  cursor: default;
 }
 
 /* ── Background: dark with radial spotlight + subtle noise ── */
@@ -177,6 +177,89 @@ html, body {
   transition: opacity 0.5s ease, scale 0.5s ease;
 }
 
+/* ── Spotlight overlay ────────────────────────────────────── */
+#sp-dim {
+  position: fixed; inset: 0;
+  z-index: 25;
+  background: rgba(0,0,0,0);
+  pointer-events: none;
+  transition: background 0.5s ease;
+}
+#sp-dim.on {
+  background: rgba(0,0,0,.82);
+}
+
+/* Spotlight card — renders as a big sharp polaroid */
+#sp-card {
+  position: fixed;
+  display: none;
+  z-index: 30;
+  background: #fff;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,.50),
+    0 12px 30px rgba(0,0,0,.40);
+}
+#sp-card.open {
+  box-shadow:
+    0 12px 50px rgba(0,0,0,.75),
+    0 30px 80px rgba(0,0,0,.55),
+    0 0 0 4px <?= $accent ?>,
+    0 0 70px <?= $accent ?>88;
+}
+#sp-img {
+  position: absolute;
+  top: 10px; left: 10px; right: 10px; bottom: 52px;
+  object-fit: cover;
+  display: block;
+  border-radius: 1px;
+  width: calc(100% - 20px);
+  height: calc(100% - 62px);
+}
+#sp-caption {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Caveat', cursive;
+  font-size: clamp(20px, 3vw, 38px);
+  font-weight: 700;
+  color: #2a2a2a;
+  padding: 0 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
+}
+
+/* Uploader name — appears below the spotlit polaroid */
+#sp-name {
+  position: fixed;
+  left: 50%;
+  top: 0; /* overridden by JS */
+  z-index: 31;
+  transform: translateX(-50%) translateY(18px);
+  font-family: 'Caveat', cursive;
+  font-size: clamp(28px, 4.5vw, 62px);
+  font-weight: 700;
+  color: #fff;
+  text-shadow:
+    0 0 30px <?= $accent ?>cc,
+    0 0 60px <?= $accent ?>88,
+    0 2px 6px rgba(0,0,0,.9);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+#sp-name.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* ── Top overlay ──────────────────────────────────────────── */
 #overlay {
   position: fixed; top: 0; left: 0; right: 0;
@@ -248,7 +331,7 @@ html, body {
   top: 80px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 30;
+  z-index: 35;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -359,6 +442,25 @@ html, body {
   85%  { opacity: 0.6; }
   100% { opacity: 0; transform: translateY(-80px) rotate(360deg) scale(1.2); }
 }
+
+/* ── Fullscreen button ────────────────────────────────────── */
+#fs-btn {
+  position: fixed;
+  bottom: 18px; right: 20px;
+  z-index: 40;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.25);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 30px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background 0.2s;
+}
+#fs-btn:hover { background: rgba(255,255,255,.22); }
 </style>
 </head>
 
@@ -396,13 +498,24 @@ html, body {
 <div id="toast-container"></div>
 
 <!-- Empty state -->
-<div id="empty-state" id="empty-state">
+<div id="empty-state">
   <div id="empty-polaroid">
     <span class="empty-icon">📷</span>
   </div>
   <div id="empty-text">Esperando las primeras fotos…</div>
   <div id="empty-sub">¡Sube tu foto desde la app!</div>
 </div>
+
+<!-- Spotlight: dim overlay + big polaroid card + name label -->
+<div id="sp-dim"></div>
+<div id="sp-card">
+  <img id="sp-img" src="" alt="">
+  <div id="sp-caption"></div>
+</div>
+<div id="sp-name"></div>
+
+<!-- Fullscreen button -->
+<button id="fs-btn">⛶ Pantalla completa</button>
 
 <script>
 (function () {
@@ -415,6 +528,11 @@ html, body {
   const POLL_INTERVAL = 3000;   // ms
   const MAX_ZONES     = 12;
   const CONFETTI_COLORS = [ACCENT, '#ffffff', '#ffd700', '#ff69b4', '#00bcd4', '#a855f7'];
+
+  /* ── Spotlight config ───────────────────────────────────── */
+  const SPOT_SHOW_MS  = 5000;   // hold at center (ms)
+  const SPOT_TRANS_MS = 500;    // fly-in / fly-out (ms)
+  const SPOT_PAUSE_MS = 1800;   // pause between spotlights (ms)
 
   /* ── Zone grid: 4 cols × 3 rows ─────────────────────────── */
   const COL_PCT = [12, 37, 63, 88];
@@ -432,12 +550,25 @@ html, body {
   let ageCounter   = 0;
   let newestEl     = null;
 
+  /* ── Spotlight state ────────────────────────────────────── */
+  let spotIdx   = 0;
+  let spotTimer = null;
+  let spotFrom  = null;  // saved bounding rect for return animation
+
   /* ── DOM refs ────────────────────────────────────────────── */
   const stage      = document.getElementById('stage');
   const countNum   = document.getElementById('count-num');
   const toastCont  = document.getElementById('toast-container');
   const emptyState = document.getElementById('empty-state');
   const cfCanvas   = document.getElementById('confetti-canvas');
+
+  /* ── Spotlight DOM refs ─────────────────────────────────── */
+  const spDim     = document.getElementById('sp-dim');
+  const spCard    = document.getElementById('sp-card');
+  const spImg     = document.getElementById('sp-img');
+  const spCaption = document.getElementById('sp-caption');
+  const spName    = document.getElementById('sp-name');
+  const fsBtn     = document.getElementById('fs-btn');
 
   /* ── confetti instance bound to our canvas ───────────────── */
   const myConfetti = confetti.create(cfCanvas, { resize: true, useWorker: true });
@@ -594,6 +725,115 @@ html, body {
     countNum.textContent = n;
   }
 
+  /* ── Spotlight: target rect (centered, polaroid proportions) */
+  function getTargetRect() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Card height = 70% of viewport height; width = polaroid ratio ~0.80
+    const h = vh * 0.70;
+    const w = h * 0.80;
+    return {
+      left   : (vw - w) / 2,
+      top    : (vh - h) / 2,
+      width  : w,
+      height : h,
+    };
+  }
+
+  /* ── Spotlight: open ──────────────────────────────────────── */
+  function doSpotlight() {
+    // Build list of occupied zones
+    const occupied = [];
+    for (let i = 0; i < MAX_ZONES; i++) {
+      if (zoneEl[i]) occupied.push(zoneEl[i]);
+    }
+    if (occupied.length === 0) {
+      spotTimer = setTimeout(doSpotlight, 2000);
+      return;
+    }
+
+    const pol = occupied[spotIdx % occupied.length];
+    spotIdx++;
+
+    const polImg   = pol.querySelector('img');
+    const polCapt  = pol.querySelector('.caption');
+    const captText = polCapt ? polCapt.textContent.trim() : '';
+
+    // Capture polaroid's current screen position
+    spotFrom = pol.getBoundingClientRect();
+    const to = getTargetRect();
+
+    // Place sp-card over the polaroid (no transition yet)
+    spCard.style.transition = 'none';
+    spCard.style.left   = spotFrom.left   + 'px';
+    spCard.style.top    = spotFrom.top    + 'px';
+    spCard.style.width  = spotFrom.width  + 'px';
+    spCard.style.height = spotFrom.height + 'px';
+
+    spImg.src = polImg ? polImg.src : '';
+    spCaption.textContent = captText;
+
+    // Position name just below the target card
+    spName.textContent  = captText;
+    spName.style.top    = (to.top + to.height + 18) + 'px';
+    spName.style.bottom = 'auto';
+
+    spCard.style.display = 'block';
+    spDim.classList.add('on');
+
+    // Animate to center
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const tx = `left ${SPOT_TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+                   `top ${SPOT_TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+                   `width ${SPOT_TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+                   `height ${SPOT_TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+                   `box-shadow ${SPOT_TRANS_MS}ms ease`;
+        spCard.style.transition = tx;
+        spCard.style.left   = to.left   + 'px';
+        spCard.style.top    = to.top    + 'px';
+        spCard.style.width  = to.width  + 'px';
+        spCard.style.height = to.height + 'px';
+        spCard.classList.add('open');
+
+        // Show name after card arrives
+        setTimeout(() => {
+          if (captText && captText !== 'Invitado') {
+            spName.classList.add('visible');
+          }
+        }, SPOT_TRANS_MS + 100);
+      });
+    });
+
+    spotTimer = setTimeout(closeSpotlight, SPOT_SHOW_MS + SPOT_TRANS_MS);
+  }
+
+  /* ── Spotlight: close ─────────────────────────────────────── */
+  function closeSpotlight() {
+    if (!spotFrom) return;
+
+    spName.classList.remove('visible');
+
+    const tx = `left ${SPOT_TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+               `top ${SPOT_TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+               `width ${SPOT_TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+               `height ${SPOT_TRANS_MS}ms cubic-bezier(.4,0,.2,1),` +
+               `box-shadow ${SPOT_TRANS_MS}ms ease`;
+    spCard.style.transition = tx;
+    spCard.style.left   = spotFrom.left   + 'px';
+    spCard.style.top    = spotFrom.top    + 'px';
+    spCard.style.width  = spotFrom.width  + 'px';
+    spCard.style.height = spotFrom.height + 'px';
+    spCard.classList.remove('open');
+    spDim.classList.remove('on');
+
+    setTimeout(() => {
+      spCard.style.display = 'none';
+      spotFrom = null;
+      spotTimer = setTimeout(doSpotlight, SPOT_PAUSE_MS);
+    }, SPOT_TRANS_MS + 80);
+  }
+
   /* ── Bootstrap initial photos ───────────────────────────── */
   function bootstrap() {
     const initial = <?= $initialJson ?>;
@@ -633,14 +873,21 @@ html, body {
     }
   }
 
-  /* ── Fullscreen on click ─────────────────────────────────── */
-  document.addEventListener('click', () => {
+  /* ── Fullscreen ──────────────────────────────────────────── */
+  function toggleFullscreen() {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
     } else {
       document.exitFullscreen().catch(() => {});
     }
+  }
+
+  fsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleFullscreen();
   });
+
+  document.addEventListener('click', () => toggleFullscreen());
 
   /* ── Sparkle opacity animation ───────────────────────────── */
   document.querySelectorAll('.sparkle').forEach(el => {
@@ -650,6 +897,7 @@ html, body {
   /* ── Init ────────────────────────────────────────────────── */
   bootstrap();
   setInterval(poll, POLL_INTERVAL);
+  setTimeout(doSpotlight, 4000);   // start spotlight cycle after 4s
 
 })();
 </script>
