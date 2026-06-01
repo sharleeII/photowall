@@ -452,13 +452,9 @@ html, body {
       <div class="cell-vibe">${vibe}</div>
       <div class="cell-name">${uname || 'Invitado'}</div>`;
 
-    // Remove old cell for this zone
-    const oldCell = bento.querySelector(`.bc-${zone}:not([data-zone-new])`);
-    if (oldCell && zoneEl[zone]) {
-      bento.removeChild(zoneEl[zone]);
-    } else if (zoneEl[zone] && zoneEl[zone].parentNode) {
-      zoneEl[zone].parentNode.removeChild(zoneEl[zone]);
-    }
+    // Remove previous occupant: tracked cell on second+ visit, or placeholder on first visit
+    const prev = zoneEl[zone] ?? bento.querySelector(`.bc-${zone}`);
+    if (prev?.parentNode) prev.parentNode.removeChild(prev);
 
     bento.appendChild(cell);
     zoneAge[zone] = ageCounter;
