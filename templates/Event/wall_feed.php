@@ -105,6 +105,7 @@ html, body {
   position: fixed; top: 56px; left: 0; right: 0; bottom: 0;
   overflow-y: scroll; overflow-x: hidden;
   scrollbar-width: none;
+  overflow-anchor: none;   /* prevent browser scroll-anchor fighting our scrollTop resets */
   transition: opacity .35s ease;
 }
 #feed::-webkit-scrollbar { display: none; }
@@ -401,9 +402,11 @@ html, body {
         if (old.parentNode) old.parentNode.removeChild(old);
       }
 
-      // Jump to top so new post is visible, then pause auto-scroll
+      // Jump to top so new post is visible, then pause auto-scroll.
+      // Use scrollTo(instant) — scrollTop assignment alone can be ignored
+      // by browsers when scroll-anchor is repositioning content.
       scrollY = 0;
-      feedEl.scrollTop = 0;
+      feedEl.scrollTo({ top: 0, behavior: 'instant' });
       pauseScroll(NEW_PAUSE);
       showToast(photo.uploader);
     } else {
