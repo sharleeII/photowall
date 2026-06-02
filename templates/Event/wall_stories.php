@@ -130,7 +130,7 @@ $initialPhotos = array_map(fn ($p) => [
             border-radius .5s ease,
             box-shadow .5s ease;
     }
-    #sp-card img { width:100%; height:100%; object-fit:cover; display:block; }
+    #sp-card img { width:100%; height:100%; object-fit:contain; background:#000; display:block; }
     #sp-card.open { box-shadow: 0 40px 100px rgba(0,0,0,.9); border-radius: 14px; }
 
     /* ─── Uploader name overlay when spotlighted ─── */

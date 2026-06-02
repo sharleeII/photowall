@@ -145,18 +145,18 @@ html, body {
 
 @keyframes kb1 {
     from { transform: scale(1.00) translate(0%,     0%);    }
-    to   { transform: scale(1.07) translate(-1.5%, -1.0%);  }
+    to   { transform: scale(1.03) translate(-0.8%, -0.5%);  }
 }
 @keyframes kb2 {
     from { transform: scale(1.00) translate(0%,    0%);   }
-    to   { transform: scale(1.07) translate(1.5%,  1.0%); }
+    to   { transform: scale(1.03) translate(0.8%,  0.5%); }
 }
 @keyframes kb3 {
-    from { transform: scale(1.07) translate(-1.0%,  1.0%); }
-    to   { transform: scale(1.00) translate( 1.0%, -1.0%); }
+    from { transform: scale(1.03) translate(-0.5%,  0.5%); }
+    to   { transform: scale(1.00) translate( 0.5%, -0.5%); }
 }
 @keyframes kb4 {
-    from { transform: scale(1.08) translate(0%, 0%); }
+    from { transform: scale(1.03) translate(0%, 0%); }
     to   { transform: scale(1.00) translate(0%, 0%); }
 }
 
