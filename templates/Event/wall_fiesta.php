@@ -21,7 +21,7 @@ foreach ($photos as $photo) {
     $ts = $photo->created->getTimestamp();
     if ($ts > $latestTs) $latestTs = $ts;
     $initialPhotos[] = [
-        'thumb'    => h($photo->filename_thumb),
+        'thumb'    => '/files/' . $event->id . '/thumb/' . $photo->filename_thumb,
         'uploader' => h($photo->uploader_name),
         'ts'       => $ts,
     ];
@@ -647,13 +647,12 @@ html, body {
     const card = document.createElement('div');
     card.className = 'polaroid';
 
-    const imgPath = `/files/${EVENT_ID}/thumb/${photo.thumb}`;
     const safeUploader = photo.uploader
       ? photo.uploader.substring(0, 28)
       : 'Invitado';
 
     card.innerHTML = `
-      <img src="${imgPath}" alt="${safeUploader}" loading="lazy" onerror="this.src='/img/placeholder-polaroid.jpg'">
+      <img src="${photo.thumb}" alt="${safeUploader}" loading="lazy">
       <div class="caption">${safeUploader}</div>
     `;
 
