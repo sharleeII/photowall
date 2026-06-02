@@ -21,6 +21,7 @@ foreach ($photos as $photo) {
     $ts = $photo->created->getTimestamp();
     if ($ts > $latestTs) $latestTs = $ts;
     $initialPhotos[] = [
+        'id'       => $photo->id,
         'thumb'    => '/files/' . $event->id . '/thumb/' . $photo->filename_thumb,
         'uploader' => h($photo->uploader_name),
         'ts'       => $ts,
@@ -545,6 +546,7 @@ html, body {
   /* ── State ───────────────────────────────────────────────── */
   let sinceTs      = <?= $latestTsJs ?>;
   let totalCount   = <?= $totalCount ?>;
+  const seenIds    = new Set(<?= json_encode(array_column($initialPhotos, 'id'), JSON_UNESCAPED_SLASHES) ?>);
   let zoneAge      = new Array(MAX_ZONES).fill(0); // lower = older
   let zoneEl       = new Array(MAX_ZONES).fill(null);
   let ageCounter   = 0;
@@ -878,15 +880,15 @@ html, body {
       const data = await res.json();
       if (!data.photos || data.photos.length === 0) return;
 
-      data.photos.forEach(p => {
-        addPolaroid({
-          thumb    : p.thumb,
-          uploader : p.uploader,
-          ts       : p.ts,
-        }, true);
-        showToast(p.uploader);
+      const newPhotos = data.photos.filter(p => !seenIds.has(p.id));
+      newPhotos.forEach(p => {
+        seenIds.add(p.id);
+        addPolaroid({ id: p.id, thumb: p.thumb, uploader: p.uploader, ts: p.ts }, true);
         if (p.ts > sinceTs) sinceTs = p.ts;
       });
+      if (newPhotos.length > 0) {
+        showToast(newPhotos[newPhotos.length - 1].uploader);
+      }
 
       updateCounter(totalCount + data.photos.length);
     } catch (_) {

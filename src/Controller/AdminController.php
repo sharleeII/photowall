@@ -341,7 +341,7 @@ class AdminController extends AppController
         $photo->status = 'approved';
         $this->Photos->save($photo);
 
-        if ($this->request->is('ajax') || $this->request->getHeaderLine('Accept') === 'application/json') {
+        if ($this->request->is('ajax') || str_contains($this->request->getHeaderLine('Accept'), 'application/json')) {
             return $this->response->withType('application/json')->withStringBody('{"ok":true}');
         }
 
@@ -361,7 +361,7 @@ class AdminController extends AppController
 
         $this->Photos->delete($photo);
 
-        if ($this->request->is('ajax') || $this->request->getHeaderLine('Accept') === 'application/json') {
+        if ($this->request->is('ajax') || str_contains($this->request->getHeaderLine('Accept'), 'application/json')) {
             return $this->response->withType('application/json')->withStringBody('{"ok":true}');
         }
 
@@ -381,7 +381,8 @@ class AdminController extends AppController
             ->toList();
 
         $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
-        $tmpZip = TMP . 'event_' . $event->id . '_' . time() . '.zip';
+        // Fixed name per event — one file max, no accumulation over time.
+        $tmpZip = TMP . 'event_' . $event->id . '.zip';
 
         $zip = new \ZipArchive();
         $zip->open($tmpZip, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
@@ -395,6 +396,9 @@ class AdminController extends AppController
         $zip->close();
 
         $filename = $event->slug . '_fotos_' . date('Ymd_His') . '.zip';
+
+        // Schedule deletion after the response is sent.
+        register_shutdown_function('unlink', $tmpZip);
 
         return $this->response
             ->withType('application/zip')

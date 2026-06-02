@@ -602,9 +602,7 @@ body:hover #fs-btn { opacity: 1; }
             const newest = added[added.length - 1];
             triggerFlash();
             showSlide(newest, true);
-            /* Advance idx so next() continues from where we'll be after this */
-            idx = pool.length % pool.length; /* wrap */
-            /* Find position after newest in pool */
+            /* Advance idx to the position after newest so next() continues from there */
             const newestPoolIdx = pool.findIndex(function (x) { return x.id === newest.id; });
             idx = (newestPoolIdx + 1) % pool.length;
 

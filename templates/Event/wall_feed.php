@@ -23,6 +23,7 @@ foreach ($photos as $photo) {
     $ts = $photo->created->getTimestamp();
     if ($ts > $latestTs) $latestTs = $ts;
     $initialPhotos[] = [
+        'id'       => $photo->id,
         'thumb'    => '/files/' . $event->id . '/thumb/' . $photo->filename_thumb,
         'uploader' => h($photo->uploader_name),
         'ts'       => $ts,
@@ -304,6 +305,7 @@ html, body {
   /* ── State ───────────────────────────────────────────────── */
   let sinceTs    = <?= $latestTsJs ?>;
   let totalCount = <?= $totalCount ?>;
+  const seenIds  = new Set(<?= json_encode(array_column($initialPhotos, 'id'), JSON_UNESCAPED_SLASHES) ?>);
   let posts      = [];   // DOM elements, newest first
   let scrollY    = 0;
   let paused     = false;
@@ -469,11 +471,15 @@ html, body {
       if (!res.ok) return;
       const data = await res.json();
       if (!data.photos || !data.photos.length) return;
+      let added = 0;
       data.photos.forEach(p => {
-        addPost({ thumb: p.thumb, uploader: p.uploader, ts: p.ts }, true);
+        if (seenIds.has(p.id)) return;
+        seenIds.add(p.id);
+        addPost({ id: p.id, thumb: p.thumb, uploader: p.uploader, ts: p.ts }, true);
         if (p.ts > sinceTs) sinceTs = p.ts;
+        added++;
       });
-      updateCounter(totalCount + data.photos.length);
+      if (added > 0) updateCounter(totalCount + added);
     } catch (_) {}
   }
 

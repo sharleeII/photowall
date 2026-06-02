@@ -213,8 +213,13 @@ $framesJson = json_encode(array_map(fn($f) => [
                 const badge = document.createElement('div');
                 badge.className = 'absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-xs cursor-pointer z-10';
                 badge.textContent = '✕';
-                const idx = pendingFiles.length - 1;
-                badge.onclick = () => { pendingFiles.splice(idx, 1); wrapper.remove(); updateSubmitBtn(); };
+                const fileRef = f;
+                badge.onclick = () => {
+                    const i = pendingFiles.indexOf(fileRef);
+                    if (i !== -1) pendingFiles.splice(i, 1);
+                    wrapper.remove();
+                    updateSubmitBtn();
+                };
 
                 wrapper.append(img, badge);
                 if (selectedFrameUrl) addOverlay(wrapper);
@@ -302,6 +307,7 @@ $framesJson = json_encode(array_map(fn($f) => [
         previewGrid.classList.add('hidden');
         submitBtn.classList.add('hidden');
         photoInput.value = '';
+        document.querySelectorAll('.camera-input, .gallery-input').forEach(inp => { inp.value = ''; });
         progressFill.style.width = '0%';
         uploadArea.classList.remove('hidden');
         successScreen.classList.add('hidden');
