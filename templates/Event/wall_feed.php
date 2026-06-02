@@ -23,7 +23,7 @@ foreach ($photos as $photo) {
     $ts = $photo->created->getTimestamp();
     if ($ts > $latestTs) $latestTs = $ts;
     $initialPhotos[] = [
-        'thumb'    => h($photo->filename_thumb),
+        'thumb'    => '/files/' . $event->id . '/thumb/' . $photo->filename_thumb,
         'uploader' => h($photo->uploader_name),
         'ts'       => $ts,
     ];
@@ -345,7 +345,7 @@ html, body {
   function createPost(photo, isNew) {
     const uname  = (photo.uploader || 'Invitado').substring(0, 30);
     const initLt = uname.charAt(0).toUpperCase();
-    const imgSrc = `/files/${EVENT_ID}/thumb/${photo.thumb}`;
+    const imgSrc = photo.thumb;
     const ago    = timeAgo(photo.ts);
 
     const el = document.createElement('div');
