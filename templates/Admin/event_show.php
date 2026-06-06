@@ -210,21 +210,57 @@ $this->assign('title', $event->title . ' · Admin');
 <?php if (!empty($latest)): ?>
     <div class="card">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="card-title mb-0">Últimas fotos aprobadas</h2>
+            <h2 class="card-title mb-0">Fotos aprobadas</h2>
             <a href="<?= h($galleryUrl) ?>" target="_blank"
                class="text-sm text-violet-600 hover:text-violet-800 font-medium">
                 Ver galería completa ↗
             </a>
         </div>
-        <div class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-2">
+        <p class="text-xs text-slate-400 mb-3">Pasa el cursor sobre una foto y pulsa ✕ para eliminarla de la pantalla.</p>
+        <div class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-2" id="approved-grid">
             <?php foreach ($latest as $photo): ?>
-                <a href="/files/<?= $event->id ?>/orig/<?= h($photo->filename_original) ?>" target="_blank"
-                   class="block">
-                    <img src="/files/<?= $event->id ?>/thumb/<?= h($photo->filename_thumb) ?>"
-                         alt="" loading="lazy"
-                         class="w-full aspect-square object-cover rounded-lg border border-slate-100 hover:opacity-80 hover:scale-105 transition">
-                </a>
+                <div class="relative group" data-photo-cell="<?= $photo->id ?>">
+                    <a href="/files/<?= $event->id ?>/thumb/<?= h($photo->filename_thumb) ?>" target="_blank"
+                       class="block">
+                        <img src="/files/<?= $event->id ?>/thumb/<?= h($photo->filename_thumb) ?>"
+                             alt="" loading="lazy"
+                             class="w-full aspect-square object-cover rounded-lg border border-slate-100 group-hover:opacity-80 transition">
+                    </a>
+                    <button type="button"
+                            class="photo-del absolute top-1 right-1 w-6 h-6 bg-red-600/90 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs leading-none shadow opacity-0 group-hover:opacity-100 transition"
+                            data-id="<?= $photo->id ?>" title="Eliminar foto" aria-label="Eliminar foto">✕</button>
+                </div>
             <?php endforeach; ?>
         </div>
     </div>
+
+    <script>
+    (function () {
+        document.querySelectorAll('#approved-grid .photo-del').forEach(function (btn) {
+            btn.addEventListener('click', async function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!confirm('¿Eliminar esta foto definitivamente? No se puede deshacer.')) return;
+                btn.disabled = true;
+                var id = btn.dataset.id;
+                try {
+                    var res = await fetch('/admin/photos/' + id + '/delete', {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (res.ok) {
+                        var cell = btn.closest('[data-photo-cell]');
+                        if (cell) cell.remove();
+                    } else {
+                        alert('No se pudo eliminar la foto.');
+                        btn.disabled = false;
+                    }
+                } catch (_) {
+                    alert('Error de red. Intenta de nuevo.');
+                    btn.disabled = false;
+                }
+            });
+        });
+    })();
+    </script>
 <?php endif; ?>

@@ -153,7 +153,7 @@ class AdminController extends AppController
         $latest = $this->Photos->find()
             ->where(['event_id' => $event->id, 'status' => 'approved'])
             ->orderBy(['created' => 'DESC'])
-            ->limit(24)
+            ->limit(60)
             ->all()
             ->toList();
 
@@ -369,6 +369,29 @@ class AdminController extends AppController
         }
 
         return $this->redirect(['action' => 'eventModerate', $photo->event_id]);
+    }
+
+    /** Delete an already-approved photo from the admin panel (live takedown). */
+    public function photoDelete(int $id): Response
+    {
+        $this->request->allowMethod(['post']);
+        $photo = $this->Photos->get($id);
+        $eventId = $photo->event_id;
+
+        $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
+        $uuid = pathinfo($photo->filename_original, PATHINFO_FILENAME);
+        $base = $uploadsDir . $photo->event_id . DIRECTORY_SEPARATOR;
+        @unlink($base . 'orig' . DIRECTORY_SEPARATOR . $photo->filename_original);
+        @unlink($base . 'thumb' . DIRECTORY_SEPARATOR . $photo->filename_thumb);
+        @unlink($base . 'thumb' . DIRECTORY_SEPARATOR . $uuid . '_framed.jpg');
+
+        $this->Photos->delete($photo);
+
+        if ($this->request->is('ajax') || str_contains($this->request->getHeaderLine('Accept'), 'application/json')) {
+            return $this->response->withType('application/json')->withStringBody('{"ok":true}');
+        }
+
+        return $this->redirect(['action' => 'eventShow', $eventId]);
     }
 
     // ---------- ZIP export ----------

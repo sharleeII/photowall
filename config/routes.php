@@ -45,6 +45,9 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/admin/photos/{id}/reject', ['controller' => 'Admin', 'action' => 'photoReject'])
             ->setPatterns(['id' => '\d+'])
             ->setPass(['id']);
+        $builder->connect('/admin/photos/{id}/delete', ['controller' => 'Admin', 'action' => 'photoDelete'])
+            ->setPatterns(['id' => '\d+'])
+            ->setPass(['id']);
         $builder->connect('/admin/events/{id}/frames/upload', ['controller' => 'Admin', 'action' => 'eventFrameUpload'])
             ->setPatterns(['id' => '\d+'])
             ->setPass(['id']);
