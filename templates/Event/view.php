@@ -123,6 +123,11 @@ $framesJson = json_encode(array_map(fn($f) => [
 
             <div id="error-banner" class="hidden mt-4 px-4 py-3 bg-rose-900/50 border border-rose-700 rounded-xl text-rose-200 text-sm"></div>
 
+            <div id="converting-banner" class="hidden mt-4 px-4 py-3 bg-sky-900/50 border border-sky-700 rounded-xl text-sky-200 text-sm flex items-center gap-2">
+                <span class="inline-block w-4 h-4 border-2 border-sky-300 border-t-transparent rounded-full animate-spin"></span>
+                Convirtiendo foto de iPhone (HEIC)… un momento.
+            </div>
+
         <?php endif; ?>
     </div>
 </div>
@@ -153,6 +158,7 @@ $framesJson = json_encode(array_map(fn($f) => [
     const successScreen = document.getElementById('success-screen');
     const uploadArea    = document.getElementById('upload-area');
     const errorBanner   = document.getElementById('error-banner');
+    const convBanner    = document.getElementById('converting-banner');
     const nameInput     = document.getElementById('uploader-name');
     const frameLabelEl  = document.getElementById('frame-label');
 
@@ -256,45 +262,93 @@ $framesJson = json_encode(array_map(fn($f) => [
         wrapper.appendChild(ov);
     }
 
+    // ── HEIC (iPhone) → JPEG conversion in the browser ───────────
+    function isHeic(f) {
+        return /\.(heic|heif)$/i.test(f.name || '') ||
+               f.type === 'image/heic' || f.type === 'image/heif';
+    }
+
+    let heicLib = null;
+    function loadHeicLib() {
+        if (heicLib) return heicLib;
+        heicLib = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = '/js/heic2any.min.js';
+            s.onload = () => resolve(window.heic2any);
+            s.onerror = () => { heicLib = null; reject(new Error('no se pudo cargar el conversor')); };
+            document.head.appendChild(s);
+        });
+        return heicLib;
+    }
+
+    async function convertHeic(file) {
+        const heic2any = await loadHeicLib();
+        const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+        const blob = Array.isArray(out) ? out[0] : out;
+        const name = (file.name || 'foto').replace(/\.(heic|heif)$/i, '') + '.jpg';
+        return new File([blob], name, { type: 'image/jpeg' });
+    }
+
+    function setConverting(on) {
+        if (convBanner) convBanner.classList.toggle('hidden', !on);
+    }
+
     // ── File handling ─────────────────────────────────────────────
-    function addFiles(files) {
+    function buildPreview(f) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'preview-wrapper relative';
+
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.className = 'w-full aspect-square object-cover rounded-lg';
+
+            const badge = document.createElement('div');
+            badge.className = 'absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-xs cursor-pointer z-10';
+            badge.textContent = '✕';
+            const fileRef = f;
+            badge.onclick = () => {
+                const i = pendingFiles.indexOf(fileRef);
+                if (i !== -1) pendingFiles.splice(i, 1);
+                wrapper.remove();
+                updateSubmitBtn();
+                if (pendingFiles.length === 0 && HAS_FRAMES) {
+                    currentOrient = null;
+                    filterFramesByPhoto(null);
+                }
+            };
+
+            wrapper.append(img, badge);
+            if (selectedFrameUrl) addOverlay(wrapper);
+            previewGrid.appendChild(wrapper);
+        };
+        reader.readAsDataURL(f);
+    }
+
+    async function addFiles(files) {
         const wasEmpty = pendingFiles.length === 0;
-        Array.from(files).forEach(f => {
+        for (let f of Array.from(files)) {
+            // Convert HEIC/HEIF (iPhone) to JPEG before anything else.
+            if (isHeic(f)) {
+                setConverting(true);
+                try {
+                    f = await convertHeic(f);
+                } catch (e) {
+                    setConverting(false);
+                    showError('No se pudo convertir una foto de iPhone (HEIC). Revisa tu conexión e intenta de nuevo.');
+                    continue;
+                }
+                setConverting(false);
+            }
+
             if (f.size > 15 * 1024 * 1024) {
                 showError(`${f.name}: demasiado grande (max 15 MB)`);
-                return;
+                continue;
             }
             pendingFiles.push(f);
-            const reader = new FileReader();
-            reader.onload = e => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'preview-wrapper relative';
-
-                const img = document.createElement('img');
-                img.src = e.target.result;
-                img.className = 'w-full aspect-square object-cover rounded-lg';
-
-                const badge = document.createElement('div');
-                badge.className = 'absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-xs cursor-pointer z-10';
-                badge.textContent = '✕';
-                const fileRef = f;
-                badge.onclick = () => {
-                    const i = pendingFiles.indexOf(fileRef);
-                    if (i !== -1) pendingFiles.splice(i, 1);
-                    wrapper.remove();
-                    updateSubmitBtn();
-                    if (pendingFiles.length === 0 && HAS_FRAMES) {
-                        currentOrient = null;
-                        filterFramesByPhoto(null);
-                    }
-                };
-
-                wrapper.append(img, badge);
-                if (selectedFrameUrl) addOverlay(wrapper);
-                previewGrid.appendChild(wrapper);
-            };
-            reader.readAsDataURL(f);
-        });
+            buildPreview(f);
+        }
         updateSubmitBtn();
 
         // On the first photo, detect its orientation and filter the frame list.
