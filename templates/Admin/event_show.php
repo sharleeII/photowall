@@ -216,18 +216,18 @@ $this->assign('title', $event->title . ' · Admin');
                 Ver galería completa ↗
             </a>
         </div>
-        <p class="text-xs text-slate-400 mb-3">Pasa el cursor sobre una foto y pulsa ✕ para eliminarla de la pantalla.</p>
+        <p class="text-xs text-slate-400 mb-3">Pulsa el botón rojo ✕ de una foto para eliminarla de la pantalla.</p>
         <div class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-2" id="approved-grid">
             <?php foreach ($latest as $photo): ?>
-                <div class="relative group" data-photo-cell="<?= $photo->id ?>">
+                <div class="relative" data-photo-cell="<?= $photo->id ?>">
                     <a href="/files/<?= $event->id ?>/thumb/<?= h($photo->filename_thumb) ?>" target="_blank"
                        class="block">
                         <img src="/files/<?= $event->id ?>/thumb/<?= h($photo->filename_thumb) ?>"
                              alt="" loading="lazy"
-                             class="w-full aspect-square object-cover rounded-lg border border-slate-100 group-hover:opacity-80 transition">
+                             class="w-full aspect-square object-cover rounded-lg border border-slate-100 hover:opacity-80 transition">
                     </a>
                     <button type="button"
-                            class="photo-del absolute top-1 right-1 w-6 h-6 bg-red-600/90 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs leading-none shadow opacity-0 group-hover:opacity-100 transition"
+                            class="photo-del absolute top-1 right-1 w-7 h-7 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-full flex items-center justify-center text-sm leading-none shadow-md ring-2 ring-white/80 transition"
                             data-id="<?= $photo->id ?>" title="Eliminar foto" aria-label="Eliminar foto">✕</button>
                 </div>
             <?php endforeach; ?>
