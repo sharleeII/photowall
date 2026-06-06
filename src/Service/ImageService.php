@@ -60,9 +60,9 @@ class ImageService
      *
      * @throws \RuntimeException on failure
      */
-    public static function generateThumb(string $sourcePath, string $destPath): void
+    public static function generateThumb(string $sourcePath, string $destPath, ?int $maxEdge = null): void
     {
-        $maxEdge = (int)Configure::read('Photowall.thumb_max_edge_px') ?: 1080;
+        $maxEdge = $maxEdge ?? ((int)Configure::read('Photowall.thumb_max_edge_px') ?: 1080);
 
         $manager = ImageManager::usingDriver(new GdDriver());
         $image = $manager->decodePath($sourcePath);
@@ -83,10 +83,15 @@ class ImageService
     }
 
     /**
-     * Composite a PNG frame (with transparent center) on top of a JPEG thumbnail.
-     * Uses raw GD for reliable alpha blending — intervention/image v4 + GD has
-     * inconsistent behaviour when compositing a resized PNG onto a JPEG.
-     * Modifies $imagePath in-place (overwrites the file).
+     * Composite a PNG frame (with transparent center) onto a JPEG photo.
+     *
+     * The output canvas takes the FRAME's aspect ratio, so the frame is never
+     * stretched or distorted — its corners and borders stay perfectly aligned.
+     * The photo is "cover"-fitted into that canvas (fills it completely, any
+     * overflow cropped, centered). Transparent areas of the frame reveal the
+     * photo beneath via alpha blending.
+     *
+     * Modifies $imagePath in-place (overwrites the file as JPEG).
      *
      * @throws \RuntimeException on failure
      */
@@ -97,9 +102,8 @@ class ImageService
         if (!$photo) {
             throw new \RuntimeException("applyFrame: cannot load photo $imagePath");
         }
-
-        $photoW = imagesx($photo);
-        $photoH = imagesy($photo);
+        $pw = imagesx($photo);
+        $ph = imagesy($photo);
 
         // Load frame PNG (must preserve alpha).
         $frameSrc = @imagecreatefrompng($framePath);
@@ -107,29 +111,50 @@ class ImageService
             imagedestroy($photo);
             throw new \RuntimeException("applyFrame: cannot load frame $framePath");
         }
+        $fw = imagesx($frameSrc);
+        $fh = imagesy($frameSrc);
 
-        // Scale frame to exact photo dimensions into a clean RGBA canvas.
-        $frame = imagecreatetruecolor($photoW, $photoH);
-        imagealphablending($frame, false);
-        imagesavealpha($frame, true);
-        $transparent = imagecolorallocatealpha($frame, 0, 0, 0, 127);
-        imagefilledrectangle($frame, 0, 0, $photoW - 1, $photoH - 1, $transparent);
-        imagecopyresampled(
-            $frame, $frameSrc,
-            0, 0, 0, 0,
-            $photoW, $photoH,
-            imagesx($frameSrc), imagesy($frameSrc)
-        );
+        // Output canvas = frame's aspect ratio, sized to the photo's long edge.
+        $frameAspect = $fw / $fh;
+        $longEdge = max($pw, $ph);
+        if ($frameAspect >= 1.0) {
+            $cw = $longEdge;
+            $ch = (int)max(1, round($longEdge / $frameAspect));
+        } else {
+            $ch = $longEdge;
+            $cw = (int)max(1, round($longEdge * $frameAspect));
+        }
+
+        $canvas = imagecreatetruecolor($cw, $ch);
+        imagealphablending($canvas, true);
+        // Base fill — only visible if the photo somehow fails to cover (it won't).
+        $bg = imagecolorallocate($canvas, 0, 0, 0);
+        imagefilledrectangle($canvas, 0, 0, $cw - 1, $ch - 1, $bg);
+
+        // Cover-fit the photo: fill the whole canvas, crop overflow, centered.
+        $canvasAspect = $cw / $ch;
+        $photoAspect = $pw / $ph;
+        if ($photoAspect > $canvasAspect) {
+            // Photo relatively wider → match canvas height, overflow on width.
+            $dh = $ch;
+            $dw = (int)round($ch * $photoAspect);
+        } else {
+            // Photo relatively taller → match canvas width, overflow on height.
+            $dw = $cw;
+            $dh = (int)round($cw / $photoAspect);
+        }
+        $dx = (int)round(($cw - $dw) / 2);
+        $dy = (int)round(($ch - $dh) / 2);
+        imagecopyresampled($canvas, $photo, $dx, $dy, 0, 0, $dw, $dh, $pw, $ph);
+        imagedestroy($photo);
+
+        // Composite the frame on top. Frame aspect == canvas aspect → no distortion.
+        // alphablending is on, so transparent frame pixels reveal the photo.
+        imagecopyresampled($canvas, $frameSrc, 0, 0, 0, 0, $cw, $ch, $fw, $fh);
         imagedestroy($frameSrc);
 
-        // Composite frame on top: alpha blending lets transparent areas show photo.
-        imagealphablending($photo, true);
-        imagecopy($photo, $frame, 0, 0, 0, 0, $photoW, $photoH);
-        imagedestroy($frame);
-
-        // Overwrite original thumb as JPEG.
-        imagejpeg($photo, $imagePath, self::THUMB_QUALITY);
-        imagedestroy($photo);
+        imagejpeg($canvas, $imagePath, self::THUMB_QUALITY);
+        imagedestroy($canvas);
     }
 
     /**

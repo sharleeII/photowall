@@ -143,6 +143,7 @@ $framesJson = json_encode(array_map(fn($f) => [
     let pendingFiles     = [];
     let selectedFrameId  = 0;
     let selectedFrameUrl = '';
+    let currentOrient    = null; // orientation of the chosen photo(s): portrait|landscape|square
 
     const photoInput    = document.getElementById('photo-input');
     const previewGrid   = document.getElementById('preview-grid');
@@ -159,7 +160,69 @@ $framesJson = json_encode(array_map(fn($f) => [
     try { nameInput.value = localStorage.getItem('pw_name') || ''; } catch(e) {}
 
     // ── Frame picker ─────────────────────────────────────────────
+    function orientationOf(w, h) {
+        if (!w || !h) return 'square';
+        const r = w / h;
+        if (r > 1.1) return 'landscape';
+        if (r < 0.9) return 'portrait';
+        return 'square';
+    }
+
+    // Classify each frame by its PNG aspect ratio (once its image loads).
+    function classifyFrames() {
+        document.querySelectorAll('.frame-option[data-frame-id]').forEach(btn => {
+            if (btn.dataset.frameId === '0') return;
+            const img = btn.querySelector('img');
+            if (!img) return;
+            const set = () => { btn.dataset.orientation = orientationOf(img.naturalWidth, img.naturalHeight); };
+            if (img.complete && img.naturalWidth) { set(); }
+            else { img.addEventListener('load', set); }
+        });
+    }
+
+    function selectNoFrame() {
+        selectedFrameId = 0;
+        selectedFrameUrl = '';
+        document.querySelectorAll('.frame-option').forEach(b => b.classList.remove('selected'));
+        const noFrame = document.querySelector('.frame-option[data-frame-id="0"]');
+        if (noFrame) noFrame.classList.add('selected');
+        if (frameLabelEl) frameLabelEl.textContent = 'Sin marco';
+        updateAllOverlays();
+    }
+
+    // Show only frames compatible with the photo's orientation.
+    // 'square' frames fit any photo; pass null to show all.
+    function filterFramesByPhoto(orient) {
+        let visible = 0;
+        document.querySelectorAll('.frame-option[data-frame-id]').forEach(btn => {
+            if (btn.dataset.frameId === '0') return; // "no frame" always shown
+            const fo = btn.dataset.orientation || 'square';
+            const compatible = !orient || fo === 'square' || fo === orient;
+            btn.style.display = compatible ? '' : 'none';
+            if (compatible) visible++;
+            if (!compatible && parseInt(btn.dataset.frameId, 10) === selectedFrameId) {
+                selectNoFrame();
+            }
+        });
+        if (frameLabelEl && orient && selectedFrameId === 0) {
+            frameLabelEl.textContent = visible > 0
+                ? (orient === 'portrait' ? 'Marcos para foto vertical' : orient === 'landscape' ? 'Marcos para foto horizontal' : 'Sin marco')
+                : 'No hay marcos para esta orientación';
+        }
+    }
+
+    // Read a file's display orientation (browsers honour EXIF on <img>).
+    function detectPhotoOrientation(file) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => { resolve(orientationOf(img.naturalWidth, img.naturalHeight)); URL.revokeObjectURL(img.src); };
+            img.onerror = () => { resolve(null); URL.revokeObjectURL(img.src); };
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
     if (HAS_FRAMES) {
+        classifyFrames();
         document.querySelectorAll('.frame-option').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.frame-option').forEach(b => b.classList.remove('selected'));
@@ -195,6 +258,7 @@ $framesJson = json_encode(array_map(fn($f) => [
 
     // ── File handling ─────────────────────────────────────────────
     function addFiles(files) {
+        const wasEmpty = pendingFiles.length === 0;
         Array.from(files).forEach(f => {
             if (f.size > 15 * 1024 * 1024) {
                 showError(`${f.name}: demasiado grande (max 15 MB)`);
@@ -219,6 +283,10 @@ $framesJson = json_encode(array_map(fn($f) => [
                     if (i !== -1) pendingFiles.splice(i, 1);
                     wrapper.remove();
                     updateSubmitBtn();
+                    if (pendingFiles.length === 0 && HAS_FRAMES) {
+                        currentOrient = null;
+                        filterFramesByPhoto(null);
+                    }
                 };
 
                 wrapper.append(img, badge);
@@ -228,6 +296,14 @@ $framesJson = json_encode(array_map(fn($f) => [
             reader.readAsDataURL(f);
         });
         updateSubmitBtn();
+
+        // On the first photo, detect its orientation and filter the frame list.
+        if (wasEmpty && pendingFiles.length > 0 && HAS_FRAMES) {
+            detectPhotoOrientation(pendingFiles[0]).then(o => {
+                currentOrient = o;
+                filterFramesByPhoto(o);
+            });
+        }
     }
 
     function updateSubmitBtn() {
@@ -312,6 +388,11 @@ $framesJson = json_encode(array_map(fn($f) => [
         uploadArea.classList.remove('hidden');
         successScreen.classList.add('hidden');
         errorBanner.classList.add('hidden');
+        if (HAS_FRAMES) {
+            currentOrient = null;
+            selectNoFrame();
+            filterFramesByPhoto(null);
+        }
     };
 })();
 </script>

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use Cake\Core\Configure;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 
@@ -159,8 +160,27 @@ class EventController extends AppController
             ->all()
             ->toList();
 
+        $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
+        $thumbBase = $uploadsDir . $event->id . DIRECTORY_SEPARATOR . 'thumb' . DIRECTORY_SEPARATOR;
+
+        // For each photo, pick the best download target: the full-res framed
+        // version if it exists, otherwise the clean original.
+        $items = array_map(function ($p) use ($event, $thumbBase) {
+            $uuid = pathinfo($p->filename_original, PATHINFO_FILENAME);
+            $framed = $uuid . '_framed.jpg';
+            $hasFramed = is_file($thumbBase . $framed);
+
+            return [
+                'thumb'    => '/files/' . $event->id . '/thumb/' . $p->filename_thumb,
+                'download' => $hasFramed
+                    ? '/files/' . $event->id . '/thumb/' . $framed
+                    : '/files/' . $event->id . '/orig/' . $p->filename_original,
+                'uploader' => $p->uploader_name,
+            ];
+        }, $photos);
+
         $this->set('themeColor', $event->theme_color);
-        $this->set(compact('event', 'photos'));
+        $this->set(compact('event', 'photos', 'items'));
     }
 
     private function getEventBySlug(string $slug): \App\Model\Entity\Event

@@ -117,17 +117,24 @@ class UploadController extends AppController
             $origDir = $uploadsDir . $event->id . DIRECTORY_SEPARATOR . 'orig' . DIRECTORY_SEPARATOR;
             $thumbDir = $uploadsDir . $event->id . DIRECTORY_SEPARATOR . 'thumb' . DIRECTORY_SEPARATOR;
 
+            $framedFilename = $uuid . '_framed.jpg';
+
             try {
                 ImageService::saveOriginal($tmpPath, $origDir . $origFilename);
                 ImageService::generateThumb($origDir . $origFilename, $thumbDir . $thumbFilename);
 
                 // Apply guest-selected frame (if any).
                 if ($framePath !== null) {
+                    // Thumb (for the live walls) — framed at thumb resolution.
                     ImageService::applyFrame($thumbDir . $thumbFilename, $framePath);
+                    // Full-res framed copy for gallery view + ZIP download.
+                    ImageService::generateThumb($origDir . $origFilename, $thumbDir . $framedFilename, 1600);
+                    ImageService::applyFrame($thumbDir . $framedFilename, $framePath);
                 }
             } catch (\Throwable $e) {
                 @unlink($origDir . $origFilename);
                 @unlink($thumbDir . $thumbFilename);
+                @unlink($thumbDir . $framedFilename);
                 $errors[] = 'No se pudo procesar la imagen. Intenta con otra foto.';
                 continue;
             }

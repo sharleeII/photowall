@@ -354,10 +354,13 @@ class AdminController extends AppController
         $photo = $this->Photos->get($id);
 
         $uploadsDir = (string)Configure::read('Photowall.uploads_dir');
+        $uuid = pathinfo($photo->filename_original, PATHINFO_FILENAME);
         $orig = $uploadsDir . $photo->event_id . DIRECTORY_SEPARATOR . 'orig' . DIRECTORY_SEPARATOR . $photo->filename_original;
         $thumb = $uploadsDir . $photo->event_id . DIRECTORY_SEPARATOR . 'thumb' . DIRECTORY_SEPARATOR . $photo->filename_thumb;
+        $framed = $uploadsDir . $photo->event_id . DIRECTORY_SEPARATOR . 'thumb' . DIRECTORY_SEPARATOR . $uuid . '_framed.jpg';
         @unlink($orig);
         @unlink($thumb);
+        @unlink($framed);
 
         $this->Photos->delete($photo);
 
@@ -388,8 +391,14 @@ class AdminController extends AppController
         $zip->open($tmpZip, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
 
         foreach ($photos as $i => $p) {
+            $uuid = pathinfo($p->filename_original, PATHINFO_FILENAME);
+            $framed = $uploadsDir . $event->id . DIRECTORY_SEPARATOR . 'thumb' . DIRECTORY_SEPARATOR . $uuid . '_framed.jpg';
             $orig = $uploadsDir . $event->id . DIRECTORY_SEPARATOR . 'orig' . DIRECTORY_SEPARATOR . $p->filename_original;
-            if (is_file($orig)) {
+
+            // Prefer the framed version (what guests saw on screen); fall back to clean original.
+            if (is_file($framed)) {
+                $zip->addFile($framed, sprintf('%04d_%s', $i + 1, $p->filename_original));
+            } elseif (is_file($orig)) {
                 $zip->addFile($orig, sprintf('%04d_%s', $i + 1, $p->filename_original));
             }
         }

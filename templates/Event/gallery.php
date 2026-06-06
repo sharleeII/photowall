@@ -3,6 +3,7 @@
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Event $event
  * @var array<\App\Model\Entity\Photo> $photos
+ * @var array<array{thumb:string,download:string,uploader:?string}> $items
  */
 $this->assign('title', $event->title . ' · Galería');
 ?>
@@ -21,17 +22,17 @@ $this->assign('title', $event->title . ' · Galería');
     <?php else: ?>
         <div class="max-w-6xl mx-auto p-4">
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                <?php foreach ($photos as $photo): ?>
-                    <a href="/files/<?= $event->id ?>/orig/<?= h($photo->filename_original) ?>"
+                <?php foreach ($items as $item): ?>
+                    <a href="<?= h($item['download']) ?>"
                        target="_blank" class="block group">
                         <div class="aspect-square overflow-hidden rounded-lg bg-slate-900">
-                            <img src="/files/<?= $event->id ?>/thumb/<?= h($photo->filename_thumb) ?>"
-                                 alt="<?= $photo->uploader_name ? h($photo->uploader_name) : '' ?>"
+                            <img src="<?= h($item['thumb']) ?>"
+                                 alt="<?= $item['uploader'] ? h($item['uploader']) : '' ?>"
                                  loading="lazy"
                                  class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                         </div>
-                        <?php if ($photo->uploader_name): ?>
-                            <p class="text-xs text-slate-500 mt-1 truncate px-1"><?= h($photo->uploader_name) ?></p>
+                        <?php if ($item['uploader']): ?>
+                            <p class="text-xs text-slate-500 mt-1 truncate px-1"><?= h($item['uploader']) ?></p>
                         <?php endif; ?>
                     </a>
                 <?php endforeach; ?>
